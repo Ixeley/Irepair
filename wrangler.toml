@@ -1,0 +1,7 @@
+name = "irepair"
+main = "worker/index.ts"
+compatibility_date = "2024-09-23"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
