@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminPage,
@@ -190,63 +191,41 @@ const CONDITION_COLORS: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// API helpers
+// API helpers — direct Supabase client (anon key + RLS disabled via setup-all.sql)
 // ---------------------------------------------------------------------------
 
 async function apiGet(): Promise<ShopProduct[]> {
-  const res = await fetch("/.netlify/functions/admin-product");
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Nalaganje ni uspelo");
-  return res.json();
+  const { data, error } = await supabase.from("shop_products").select("*").order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ShopProduct[];
 }
 
 async function apiPost(payload: Record<string, unknown>): Promise<ShopProduct> {
-  const res = await fetch("/.netlify/functions/admin-product", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? "Shranjevanje ni uspelo");
-  return json;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await supabase.from("shop_products").insert(payload as any).select().single();
+  if (error) throw new Error(error.message);
+  return data as ShopProduct;
 }
 
 async function apiPut(id: string, payload: Record<string, unknown>): Promise<ShopProduct> {
-  const res = await fetch(`/.netlify/functions/admin-product?id=${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? "Posodobitev ni uspela");
-  return json;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await supabase.from("shop_products").update(payload as any).eq("id", id).select().single();
+  if (error) throw new Error(error.message);
+  return data as ShopProduct;
 }
 
 async function apiDelete(id: string): Promise<void> {
-  const res = await fetch(`/.netlify/functions/admin-product?id=${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Brisanje ni uspelo");
+  const { error } = await supabase.from("shop_products").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 async function uploadImage(file: File): Promise<string> {
-  const urlRes = await fetch("/.netlify/functions/get-upload-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: file.name }),
-  });
-  const urlData = await urlRes.json().catch(() => ({}));
-  if (!urlRes.ok) {
-    throw new Error(
-      urlData.error === "Supabase service key not configured."
-        ? "Manjka SUPABASE_SERVICE_ROLE_KEY v Netlify env vars."
-        : (urlData.error ?? "Upload URL ni uspel")
-    );
-  }
-  const uploadRes = await fetch(urlData.signedUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type || "application/octet-stream" },
-    body: file,
-  });
-  if (!uploadRes.ok) throw new Error(`Supabase Storage upload napaka (${uploadRes.status}). Preverite bucket 'product-images'.`);
-  return urlData.publicUrl as string;
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: false });
+  if (error) throw new Error(`Upload napaka: ${error.message}`);
+  const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // ---------------------------------------------------------------------------
@@ -453,11 +432,8 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
   return (
     <div className="flex items-center gap-3">
       <button type="button" onClick={() => onChange(!value)}
-        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${value ? "bg-primary" : "bg-muted"}`}>
-        <span
-          className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
-          style={{ transform: value ? "translateX(18px)" : "translateX(2px)" }}
-        />
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${value ? "bg-primary" : "bg-muted"}`}>
+        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${value ? "translate-x-6" : "translate-x-1"}`} />
       </button>
       <span className="text-sm font-medium">{label}</span>
     </div>
