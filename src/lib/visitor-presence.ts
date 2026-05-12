@@ -6,8 +6,7 @@ export type VisitorState = {
   page: string;
   activity: "browsing" | "booking" | "shop";
   joinedAt: string;
-  isAdmin?: boolean;
-  // booking fields
+  lastSeen: string;
   bookingStep?: number;
   bookingDevice?: string;
   bookingModel?: string;
@@ -16,7 +15,6 @@ export type VisitorState = {
   bookingName?: string;
   bookingEmail?: string;
   bookingPhone?: string;
-  // shop fields
   shopTab?: "buy" | "sell";
   shopCategory?: string;
   shopProduct?: string;
@@ -48,52 +46,55 @@ export function isAdmin(): boolean {
 
 let _channel: RealtimeChannel | null = null;
 let _state: VisitorState | null = null;
-let _subscribed = false;
-let _unloadHandler: (() => void) | null = null;
+let _heartbeat: ReturnType<typeof setInterval> | null = null;
+
+async function send(event: "visitor_update" | "visitor_leave") {
+  if (!_channel || !_state) return;
+  _state.lastSeen = new Date().toISOString();
+  try {
+    await _channel.send({ type: "broadcast", event, payload: { ..._state } });
+  } catch { /* ignore */ }
+}
 
 export function initVisitorTracking(page: string): () => void {
   if (isAdmin()) return () => {};
 
   const sessionId = getSessionId();
-
   _state = {
     sessionId,
     page,
     activity: "browsing",
     joinedAt: new Date().toISOString(),
+    lastSeen: new Date().toISOString(),
   };
 
-  _channel = supabase.channel(VISITOR_CHANNEL, {
-    config: { presence: { key: sessionId } },
-  });
+  _channel = supabase.channel(VISITOR_CHANNEL);
 
-  _unloadHandler = () => { _channel?.untrack(); };
-  window.addEventListener("beforeunload", _unloadHandler);
+  _channel.on("broadcast", { event: "request_state" }, () => {
+    send("visitor_update");
+  });
 
   _channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
-      _subscribed = true;
-      if (_state) await _channel!.track(_state);
+      await send("visitor_update");
+      _heartbeat = setInterval(() => send("visitor_update"), 15000);
     }
   });
 
+  const onUnload = () => send("visitor_leave");
+  window.addEventListener("beforeunload", onUnload);
+
   return () => {
-    if (_unloadHandler) window.removeEventListener("beforeunload", _unloadHandler);
-    if (_channel) {
-      _channel.untrack();
-      supabase.removeChannel(_channel);
-    }
-    _channel = null;
+    window.removeEventListener("beforeunload", onUnload);
+    if (_heartbeat) { clearInterval(_heartbeat); _heartbeat = null; }
+    send("visitor_leave");
+    if (_channel) { supabase.removeChannel(_channel); _channel = null; }
     _state = null;
-    _subscribed = false;
-    _unloadHandler = null;
   };
 }
 
 export async function updateVisitorState(update: Partial<VisitorState>): Promise<void> {
-  if (!_channel || !_state) return;
+  if (!_state) return;
   _state = { ..._state, ...update };
-  if (_subscribed) {
-    await _channel.track(_state);
-  }
+  await send("visitor_update");
 }
