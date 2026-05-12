@@ -9,7 +9,7 @@ export function Hero() {
         <div className="animate-fade-up">
           <div className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
             <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            Trenutno odprto · Brezplačna diagnostika
+            Trenutno odprto · Diagnostika vidnih napak brezplačna
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
             Vaša Apple naprava<br />
@@ -25,7 +25,7 @@ export function Hero() {
               <a href="#narocilo">Naročite popravilo</a>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-full px-7">
-              <a href="#kontakt">Brezplačna diagnostika</a>
+              <a href="#kontakt">Diagnostika naprave</a>
             </Button>
           </div>
           <div className="mt-10 grid grid-cols-3 gap-4 max-w-md">

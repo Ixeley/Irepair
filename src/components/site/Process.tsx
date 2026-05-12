@@ -1,12 +1,12 @@
 import { Package, Search, FileText, Wrench, ShieldCheck, PartyPopper } from "lucide-react";
 
 const steps = [
-  { icon: Package, title: "Oddaja", desc: "Prinesete ali pošljete napravo." },
-  { icon: Search, title: "Diagnostika", desc: "Brezplačna in hitra." },
+  { icon: Package, title: "Oddaja", desc: "Napravo prinesete osebno v poslovalnico." },
+  { icon: Search, title: "Diagnostika", desc: "Hitra. Brezplačna za vidne napake." },
   { icon: FileText, title: "Ponudba", desc: "Jasna, brez presenečenj." },
   { icon: Wrench, title: "Popravilo", desc: "Od 20 min do 5 dni." },
   { icon: ShieldCheck, title: "Test + Garancija", desc: "Temeljito preverjeno." },
-  { icon: PartyPopper, title: "Prevzem", desc: "Osebno ali z dostavo." },
+  { icon: PartyPopper, title: "Prevzem", desc: "Osebno v poslovalnici." },
 ];
 
 export function Process() {

@@ -1,12 +1,12 @@
 import { CheckCircle2 } from "lucide-react";
 
 const reasons = [
-  "Brezplačna diagnostika",
+  "Diagnostika vidnih napak brezplačna",
   "Garancija na vse storitve",
   "Nadomestni telefon brezplačno",
   "Najvišja uspešnost popravila",
-  "Možnost kurirske dostave",
-  "Popravilo preko pošte",
+  "Sprejem in prevzem osebno v poslovalnici",
+  "20+ let izkušenj z Apple napravami",
 ];
 
 const stats = [

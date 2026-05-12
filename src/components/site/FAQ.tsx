@@ -4,9 +4,9 @@ const faqs = [
   ["Koliko časa traja popravilo?", "Standardno popravilo traja 2–5 dni, manjša popravila (npr. zamenjava zaslona iPhone) le 20 minut. Urgentna opcija v 24 urah."],
   ["Ali nudite garancijo?", "Da, na vsa popravila nudimo garancijo. Trajanje je odvisno od storitve in se giblje od 3 do 12 mesecev."],
   ["Kaj če je naprava v stiku s tekočino?", "Takoj jo izklopite in nas pokličite. Hitri odziv močno poveča možnost popolnega popravila."],
-  ["Ali lahko pošljem napravo po pošti?", "Da, organiziramo tudi kurirsko dostavo v obe smeri. Naprava je zavarovana ves čas poti."],
   ["Ali lahko dobim nadomestni telefon?", "Da, brezplačno za čas trajanja popravila (do razpoložljivosti)."],
-  ["Kako deluje diagnostika?", "Diagnostika je vedno brezplačna in neobvezujoča. Po njej prejmete jasno ponudbo."],
+  ["Kako deluje diagnostika?", "Diagnostika vidnih napak je brezplačna. Če je potrebno odpreti napravo, se diagnostika zaračuna — cena pa se odšteje od končnega popravila."],
+  ["Kako oddam napravo?", "Napravo prinesete osebno v našo poslovalnico na Koprski 94 v Ljubljani. Sprejem in prevzem sta možna le osebno."],
   ["Katere načine plačila sprejemate?", "Gotovina, kartice (Visa, Mastercard), nakazilo, Pay-Pass."],
 ];
 

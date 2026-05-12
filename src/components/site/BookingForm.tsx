@@ -153,18 +153,18 @@ const ISSUE_PRICES: Record<string, Partial<Record<Tier, string>>> = {
     pro_max: "od 99€", pro: "od 99€", standard: "od 79€", mini_se: "od 79€",
   },
   "Drugo": {
-    pro_max: "Brezplačna diagnostika", pro: "Brezplačna diagnostika",
-    standard: "Brezplačna diagnostika", mini_se: "Brezplačna diagnostika",
-    ipad_pro: "Brezplačna diagnostika", ipad_std: "Brezplačna diagnostika",
-    macbook_new: "Brezplačna diagnostika", macbook_intel: "Brezplačna diagnostika",
-    watch: "Brezplačna diagnostika",
+    pro_max: "Po diagnostiki", pro: "Po diagnostiki",
+    standard: "Po diagnostiki", mini_se: "Po diagnostiki",
+    ipad_pro: "Po diagnostiki", ipad_std: "Po diagnostiki",
+    macbook_new: "Po diagnostiki", macbook_intel: "Po diagnostiki",
+    watch: "Po diagnostiki",
   },
 };
 
 function getPrice(model: string, issue: string): string {
   const tier = MODEL_TIER[model];
-  if (!tier) return "Brezplačna diagnostika";
-  return ISSUE_PRICES[issue]?.[tier] ?? "Brezplačna diagnostika";
+  if (!tier) return "Po diagnostiki";
+  return ISSUE_PRICES[issue]?.[tier] ?? "Po diagnostiki";
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +231,7 @@ export function BookingForm() {
   const [issues, setIssues] = useState<string[]>([]);
   const [urgency, setUrgency] = useState("standard");
   const [contact, setContact] = useState({
-    name: "", email: "", phone: "", address: "", description: "", courier: false, replacement: false,
+    name: "", email: "", phone: "", description: "", replacement: false,
   });
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -286,9 +286,9 @@ export function BookingForm() {
       name: contact.name,
       email: contact.email,
       phone: contact.phone,
-      address: contact.address || null,
+      address: null,
       description: descParts.join(" ").trim() || null,
-      courier: contact.courier,
+      courier: false,
       replacement: contact.replacement,
     });
     setSubmitting(false);
@@ -509,14 +509,6 @@ export function BookingForm() {
               />
             </div>
             <div className="sm:col-span-2">
-              <Label>Naslov (za kurirja)</Label>
-              <Input
-                className="mt-1.5"
-                value={contact.address}
-                onChange={(e) => setContact({ ...contact, address: e.target.value })}
-              />
-            </div>
-            <div className="sm:col-span-2">
               <Label>Opis težave</Label>
               <Textarea
                 className="mt-1.5"
@@ -527,13 +519,6 @@ export function BookingForm() {
             </div>
           </div>
           <div className="space-y-2 pt-2">
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={contact.courier}
-                onCheckedChange={(v) => setContact({ ...contact, courier: !!v })}
-              />
-              Želim kurirsko dostavo
-            </label>
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={contact.replacement}
@@ -584,16 +569,8 @@ export function BookingForm() {
             <Row k="Ime" v={contact.name} />
             <Row k="E-pošta" v={contact.email} />
             <Row k="Telefon" v={contact.phone} />
-            {contact.address && <Row k="Naslov" v={contact.address} />}
             {contact.description && <Row k="Opis" v={contact.description} />}
-            {(contact.courier || contact.replacement) && (
-              <Row
-                k="Dodatno"
-                v={[contact.courier && "Kurirska dostava", contact.replacement && "Nadomestni telefon"]
-                  .filter(Boolean)
-                  .join(", ")}
-              />
-            )}
+            {contact.replacement && <Row k="Dodatno" v="Nadomestni telefon" />}
           </div>
           <p className="text-xs text-muted-foreground">
             * Cene so okvirne. Dokončna cena bo potrjena po pregledu naprave.

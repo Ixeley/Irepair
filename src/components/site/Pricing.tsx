@@ -36,7 +36,7 @@ export function Pricing() {
         <div className="text-center mb-12">
           <p className="text-sm font-semibold text-primary uppercase tracking-wider">Cenik</p>
           <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Pregledne, poštene cene</h2>
-          <p className="mt-3 text-muted-foreground text-sm">* Cene so okvirne. Natančno ponudbo prejmete po brezplačni diagnostiki.</p>
+          <p className="mt-3 text-muted-foreground text-sm">* Cene so okvirne. Natančno ponudbo prejmete po diagnostiki naprave.</p>
         </div>
         <Accordion type="single" collapsible defaultValue="iPhone" className="space-y-3">
           {groups.map((g) => (
