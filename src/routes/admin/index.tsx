@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
+import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/")({
@@ -462,6 +463,7 @@ function ProductForm({ initial, onSave, onCancel }: {
 }) {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, ...initial });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const set = (k: string, v: unknown) => setForm(p => ({ ...p, [k]: v }));
 
@@ -479,9 +481,10 @@ function ProductForm({ initial, onSave, onCancel }: {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const priceInt = parseInt(form.price);
-    if (!form.name.trim()) { toast.error("Vnesite ime naprave."); return; }
-    if (isNaN(priceInt) || priceInt < 1) { toast.error("Vnesite veljavno ceno."); return; }
+    if (!form.name.trim()) { setSaveError("Vnesite ime naprave."); return; }
+    if (isNaN(priceInt) || priceInt < 1) { setSaveError("Vnesite veljavno ceno."); return; }
     setSaving(true);
+    setSaveError(null);
     try {
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
@@ -503,8 +506,10 @@ function ProductForm({ initial, onSave, onCancel }: {
       else await apiPost(payload);
       toast.success(id ? "Posodobljeno." : "Izdelek dodan!");
       onSave();
-    } catch (e) {
-      toast.error((e as Error).message);
+    } catch (err) {
+      const msg = (err as Error).message;
+      setSaveError(msg);
+      toast.error(msg);
     }
     setSaving(false);
   };
@@ -613,6 +618,22 @@ function ProductForm({ initial, onSave, onCancel }: {
       {/* Visible toggle */}
       <Toggle value={form.available} onChange={v => set("available", v)}
         label={form.available ? "Vidno v shopu" : "Skrito"} />
+
+      {saveError && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
+          <div>
+            <p className="font-semibold">Napaka pri shranjevanju</p>
+            <p className="font-mono text-xs mt-0.5">{saveError}</p>
+            {(saveError.includes("fetch") || saveError.includes("Failed")) && (
+              <p className="mt-1 text-xs">Preverite <code className="bg-red-100 rounded px-0.5">VITE_SUPABASE_URL</code> in <code className="bg-red-100 rounded px-0.5">VITE_SUPABASE_PUBLISHABLE_KEY</code> v Netlify env vars.</p>
+            )}
+            {(saveError.includes("permission") || saveError.includes("denied") || saveError.includes("policy") || saveError.includes("RLS")) && (
+              <p className="mt-1 text-xs">Zaženite <code className="bg-red-100 rounded px-0.5">supabase/setup-all.sql</code> v Supabase SQL Editorju.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2 border-t border-border">
         <Button type="submit" className="rounded-full" disabled={saving}>
@@ -726,15 +747,20 @@ function ProductRow({ product, onRefresh }: { product: ShopProduct; onRefresh: (
 // Admin page
 // ---------------------------------------------------------------------------
 
+const SUPABASE_CONFIGURED =
+  !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 function AdminPage() {
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     try { setProducts(await apiGet()); }
-    catch (e) { toast.error((e as Error).message); }
+    catch (e) { setLoadError((e as Error).message); }
     setLoading(false);
   };
 
@@ -744,6 +770,7 @@ function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster />
       <header className="sticky top-0 z-40 glass shadow-soft">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
@@ -757,6 +784,29 @@ function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-10">
+        {!SUPABASE_CONFIGURED && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5 text-amber-500" />
+            <div>
+              <p className="font-semibold mb-1">Supabase ni konfiguriran</p>
+              <p>Manjkata okoljski spremenljivki <code className="bg-amber-100 rounded px-1">VITE_SUPABASE_URL</code> in <code className="bg-amber-100 rounded px-1">VITE_SUPABASE_PUBLISHABLE_KEY</code>. Dodajte ju v Netlify → Site configuration → Environment variables, nato naredite redeploy.</p>
+            </div>
+          </div>
+        )}
+        {loadError && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-5 py-4 text-sm text-red-900">
+            <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5 text-red-500" />
+            <div>
+              <p className="font-semibold mb-1">Napaka pri nalaganju izdelkov</p>
+              <p className="font-mono text-xs">{loadError}</p>
+              {loadError.includes("Failed to fetch") || loadError.includes("fetch") ? (
+                <p className="mt-1">Preverite, ali ste pravilno nastavili Supabase okoljske spremenljivke in ali je URL pravilen.</p>
+              ) : loadError.includes("permission") || loadError.includes("RLS") || loadError.includes("policy") ? (
+                <p className="mt-1">Zaženite <code className="bg-red-100 rounded px-1">supabase/setup-all.sql</code> v Supabase SQL Editorju, da onemogočite RLS.</p>
+              ) : null}
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: "Skupaj", value: products.length,                         color: "text-foreground" },
