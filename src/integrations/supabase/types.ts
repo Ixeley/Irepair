@@ -73,6 +73,7 @@ export type Database = {
           condition: string
           images: string[]
           colors: string[]
+          storage: string[]
           stock_status: string
           delivery_days: number | null
           available: boolean
@@ -88,6 +89,7 @@ export type Database = {
           condition: string
           images?: string[]
           colors?: string[]
+          storage?: string[]
           stock_status?: string
           delivery_days?: number | null
           available?: boolean
@@ -103,6 +105,7 @@ export type Database = {
           condition?: string
           images?: string[]
           colors?: string[]
+          storage?: string[]
           stock_status?: string
           delivery_days?: number | null
           available?: boolean

@@ -2,11 +2,139 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminPage,
 });
+
+// ---------------------------------------------------------------------------
+// Device database — name → category, colors, storage options
+// ---------------------------------------------------------------------------
+
+type Category = "telefoni" | "macbooki" | "ipadi" | "ure" | "drugo";
+
+interface DeviceEntry {
+  category: Category;
+  colors: string[];
+  storage: string[];
+}
+
+const DEVICE_DB: Record<string, DeviceEntry> = {
+  // iPhone 16
+  "iPhone 16 Pro Max": { category: "telefoni", colors: ["Black Titanium","White Titanium","Natural Titanium","Desert Titanium"], storage: ["256GB","512GB","1TB"] },
+  "iPhone 16 Pro":     { category: "telefoni", colors: ["Black Titanium","White Titanium","Natural Titanium","Desert Titanium"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 16 Plus":    { category: "telefoni", colors: ["Black","White","Pink","Teal","Ultramarine"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 16":         { category: "telefoni", colors: ["Black","White","Pink","Teal","Ultramarine"], storage: ["128GB","256GB","512GB"] },
+  // iPhone 15
+  "iPhone 15 Pro Max": { category: "telefoni", colors: ["Black Titanium","White Titanium","Natural Titanium","Blue Titanium"], storage: ["256GB","512GB","1TB"] },
+  "iPhone 15 Pro":     { category: "telefoni", colors: ["Black Titanium","White Titanium","Natural Titanium","Blue Titanium"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 15 Plus":    { category: "telefoni", colors: ["Black","Blue","Green","Yellow","Pink"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 15":         { category: "telefoni", colors: ["Black","Blue","Green","Yellow","Pink"], storage: ["128GB","256GB","512GB"] },
+  // iPhone 14
+  "iPhone 14 Pro Max": { category: "telefoni", colors: ["Space Black","Silver","Gold","Deep Purple"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 14 Pro":     { category: "telefoni", colors: ["Space Black","Silver","Gold","Deep Purple"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 14 Plus":    { category: "telefoni", colors: ["Midnight","Starlight","Blue","Purple","Product Red","Yellow"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 14":         { category: "telefoni", colors: ["Midnight","Starlight","Blue","Purple","Product Red","Yellow"], storage: ["128GB","256GB","512GB"] },
+  // iPhone 13
+  "iPhone 13 Pro Max": { category: "telefoni", colors: ["Alpine Green","Sierra Blue","Graphite","Gold","Silver"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 13 Pro":     { category: "telefoni", colors: ["Alpine Green","Sierra Blue","Graphite","Gold","Silver"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPhone 13":         { category: "telefoni", colors: ["Midnight","Starlight","Blue","Green","Pink","Product Red"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 13 mini":    { category: "telefoni", colors: ["Midnight","Starlight","Blue","Green","Pink","Product Red"], storage: ["128GB","256GB","512GB"] },
+  // iPhone 12
+  "iPhone 12 Pro Max": { category: "telefoni", colors: ["Pacific Blue","Gold","Silver","Graphite"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 12 Pro":     { category: "telefoni", colors: ["Pacific Blue","Gold","Silver","Graphite"], storage: ["128GB","256GB","512GB"] },
+  "iPhone 12":         { category: "telefoni", colors: ["Black","White","Blue","Green","Product Red","Purple"], storage: ["64GB","128GB","256GB"] },
+  "iPhone 12 mini":    { category: "telefoni", colors: ["Black","White","Blue","Green","Product Red","Purple"], storage: ["64GB","128GB","256GB"] },
+  // iPhone SE
+  "iPhone SE (3. gen)": { category: "telefoni", colors: ["Midnight","Starlight","Product Red"], storage: ["64GB","128GB","256GB"] },
+  "iPhone SE (2. gen)": { category: "telefoni", colors: ["Black","White","Product Red"], storage: ["64GB","128GB","256GB"] },
+  // iPad Pro
+  "iPad Pro 13\" M4":  { category: "ipadi", colors: ["Silver","Space Black"], storage: ["256GB","512GB","1TB","2TB"] },
+  "iPad Pro 11\" M4":  { category: "ipadi", colors: ["Silver","Space Black"], storage: ["256GB","512GB","1TB","2TB"] },
+  "iPad Pro 12.9\" M2": { category: "ipadi", colors: ["Silver","Space Gray"], storage: ["128GB","256GB","512GB","1TB","2TB"] },
+  "iPad Pro 11\" M2":  { category: "ipadi", colors: ["Silver","Space Gray"], storage: ["128GB","256GB","512GB","1TB","2TB"] },
+  // iPad Air
+  "iPad Air 13\" M2":  { category: "ipadi", colors: ["Blue","Purple","Starlight","Space Gray"], storage: ["128GB","256GB","512GB","1TB"] },
+  "iPad Air 11\" M2":  { category: "ipadi", colors: ["Blue","Purple","Starlight","Space Gray"], storage: ["128GB","256GB","512GB","1TB"] },
+  // iPad mini
+  "iPad mini 7":       { category: "ipadi", colors: ["Blue","Purple","Starlight","Space Gray"], storage: ["128GB","256GB","512GB"] },
+  "iPad mini 6":       { category: "ipadi", colors: ["Blue","Purple","Starlight","Space Gray"], storage: ["64GB","256GB"] },
+  // iPad
+  "iPad (10. gen)":    { category: "ipadi", colors: ["Blue","Pink","Silver","Yellow"], storage: ["64GB","256GB"] },
+  "iPad (9. gen)":     { category: "ipadi", colors: ["Silver","Space Gray"], storage: ["64GB","256GB"] },
+  // MacBook Air
+  "MacBook Air 15\" M3": { category: "macbooki", colors: ["Midnight","Starlight","Space Gray","Silver","Sky Blue"], storage: ["256GB","512GB","1TB","2TB"] },
+  "MacBook Air 13\" M3": { category: "macbooki", colors: ["Midnight","Starlight","Space Gray","Silver","Sky Blue"], storage: ["256GB","512GB","1TB","2TB"] },
+  "MacBook Air 15\" M2": { category: "macbooki", colors: ["Midnight","Starlight","Space Gray","Silver"], storage: ["256GB","512GB","1TB"] },
+  "MacBook Air 13\" M2": { category: "macbooki", colors: ["Midnight","Starlight","Space Gray","Silver"], storage: ["256GB","512GB","1TB"] },
+  "MacBook Air 13\" M1": { category: "macbooki", colors: ["Space Gray","Silver","Gold"], storage: ["256GB","512GB","1TB"] },
+  // MacBook Pro
+  "MacBook Pro 16\" M4 Pro": { category: "macbooki", colors: ["Space Black","Silver"], storage: ["512GB","1TB","2TB","4TB"] },
+  "MacBook Pro 16\" M4 Max": { category: "macbooki", colors: ["Space Black","Silver"], storage: ["1TB","2TB","4TB"] },
+  "MacBook Pro 14\" M4 Pro": { category: "macbooki", colors: ["Space Black","Silver"], storage: ["512GB","1TB","2TB","4TB"] },
+  "MacBook Pro 14\" M4":     { category: "macbooki", colors: ["Space Black","Silver"], storage: ["512GB","1TB","2TB"] },
+  "MacBook Pro 16\" M3 Pro": { category: "macbooki", colors: ["Space Black","Silver"], storage: ["512GB","1TB","2TB","4TB"] },
+  "MacBook Pro 14\" M3 Pro": { category: "macbooki", colors: ["Space Black","Silver"], storage: ["512GB","1TB","2TB","4TB"] },
+  "MacBook Pro 13\" M2":     { category: "macbooki", colors: ["Space Gray","Silver"], storage: ["256GB","512GB","1TB","2TB"] },
+  // Apple Watch
+  "Apple Watch Ultra 2":     { category: "ure", colors: ["Natural Titanium","Black Titanium"], storage: [] },
+  "Apple Watch Series 10":   { category: "ure", colors: ["Jet Black","Rose Gold","Silver","Gold"], storage: [] },
+  "Apple Watch Series 9":    { category: "ure", colors: ["Midnight","Starlight","Pink","Product Red","Silver","Gold"], storage: [] },
+  "Apple Watch Series 8":    { category: "ure", colors: ["Midnight","Starlight","Product Red","Silver"], storage: [] },
+  "Apple Watch SE (2. gen)": { category: "ure", colors: ["Midnight","Starlight","Silver"], storage: [] },
+  // AirPods
+  "AirPods 4":               { category: "drugo", colors: ["White"], storage: [] },
+  "AirPods Pro (2. gen)":    { category: "drugo", colors: ["White"], storage: [] },
+  "AirPods Max":             { category: "drugo", colors: ["Midnight","Starlight","Blue","Orange","Purple"], storage: [] },
+};
+
+// ---------------------------------------------------------------------------
+// Color hex map
+// ---------------------------------------------------------------------------
+
+const COLOR_HEX: Record<string, string> = {
+  "Midnight":          "#1C1C1E",
+  "Starlight":         "#F2EDE3",
+  "Silver":            "#E3E4E2",
+  "Gold":              "#F5D98C",
+  "Space Gray":        "#636366",
+  "Space Black":       "#2C2C2E",
+  "Graphite":          "#535150",
+  "Black":             "#1C1C1E",
+  "White":             "#F5F5F0",
+  "Black Titanium":    "#353535",
+  "White Titanium":    "#E5E0D8",
+  "Natural Titanium":  "#C8B89A",
+  "Desert Titanium":   "#C4A882",
+  "Blue Titanium":     "#4A6680",
+  "Pink":              "#F2A7B0",
+  "Yellow":            "#F5E27D",
+  "Green":             "#CAD9C8",
+  "Blue":              "#A5C8E4",
+  "Teal":              "#4A9A8E",
+  "Ultramarine":       "#4861A3",
+  "Purple":            "#C8B8D8",
+  "Product Red":       "#BE0000",
+  "Deep Purple":       "#59546C",
+  "Alpine Green":      "#4B5945",
+  "Sierra Blue":       "#A8C2D0",
+  "Midnight Green":    "#4A5240",
+  "Pacific Blue":      "#3D6E8A",
+  "Coral":             "#FF6E5A",
+  "Sky Blue":          "#A8C8E0",
+  "Rose Gold":         "#E8BFAF",
+  "Jet Black":         "#1A1A1A",
+  "Orange":            "#E8804A",
+};
+
+// Is a color too light to show a white checkmark?
+function needsDarkCheck(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 160;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +150,7 @@ interface ShopProduct {
   condition: string;
   images: string[];
   colors: string[];
+  storage: string[];
   stock_status: "na_zalogi" | "ni_zalogi" | "po_narocilu";
   delivery_days?: number;
   available: boolean;
@@ -32,12 +161,12 @@ interface ShopProduct {
 // Constants
 // ---------------------------------------------------------------------------
 
-const CATEGORIES = [
-  { value: "telefoni",  label: "Telefoni" },
-  { value: "macbooki",  label: "MacBooki" },
-  { value: "ipadi",     label: "iPadi" },
-  { value: "ure",       label: "Apple Watch" },
-  { value: "drugo",     label: "Drugo" },
+const CATEGORIES: { value: Category; label: string }[] = [
+  { value: "telefoni", label: "Telefoni" },
+  { value: "macbooki", label: "MacBooki" },
+  { value: "ipadi",    label: "iPadi" },
+  { value: "ure",      label: "Apple Watch" },
+  { value: "drugo",    label: "Drugo" },
 ];
 
 const CONDITIONS = [
@@ -48,7 +177,7 @@ const CONDITIONS = [
 ];
 
 const STOCK_OPTIONS = [
-  { value: "na_zalogi",   label: "Na zalogi",   color: "bg-emerald-100 text-emerald-700" },
+  { value: "na_zalogi",   label: "Na zalogi",    color: "bg-emerald-100 text-emerald-700" },
   { value: "ni_zalogi",   label: "Ni na zalogi", color: "bg-red-100 text-red-700" },
   { value: "po_narocilu", label: "Po naročilu",  color: "bg-amber-100 text-amber-700" },
 ];
@@ -60,21 +189,13 @@ const CONDITION_COLORS: Record<string, string> = {
   vidne_sledi: "bg-orange-100 text-orange-700",
 };
 
-// Common Apple device colors
-const SUGGESTED_COLORS = [
-  "Midnight", "Starlight", "Blue", "Green", "Yellow", "Pink", "Purple", "Red",
-  "Black", "White", "Silver", "Gold", "Space Gray", "Space Black", "Graphite",
-  "Natural Titanium", "Black Titanium", "White Titanium", "Desert Titanium",
-  "Deep Purple", "Sierra Blue", "Alpine Green", "Midnight Green",
-];
-
 // ---------------------------------------------------------------------------
-// API helpers (use Netlify Functions → service role key, bypasses RLS)
+// API helpers
 // ---------------------------------------------------------------------------
 
 async function apiGet(): Promise<ShopProduct[]> {
   const res = await fetch("/.netlify/functions/admin-product");
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Load failed");
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Nalaganje ni uspelo");
   return res.json();
 }
 
@@ -85,7 +206,7 @@ async function apiPost(payload: Record<string, unknown>): Promise<ShopProduct> {
     body: JSON.stringify(payload),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? "Save failed");
+  if (!res.ok) throw new Error(json.error ?? "Shranjevanje ni uspelo");
   return json;
 }
 
@@ -96,34 +217,35 @@ async function apiPut(id: string, payload: Record<string, unknown>): Promise<Sho
     body: JSON.stringify(payload),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error ?? "Update failed");
+  if (!res.ok) throw new Error(json.error ?? "Posodobitev ni uspela");
   return json;
 }
 
 async function apiDelete(id: string): Promise<void> {
   const res = await fetch(`/.netlify/functions/admin-product?id=${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Delete failed");
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Brisanje ni uspelo");
 }
 
-// Upload image via signed URL from server (uses service role key — no Storage policy needed)
 async function uploadImage(file: File): Promise<string> {
-  // 1. Get signed upload URL from server
   const urlRes = await fetch("/.netlify/functions/get-upload-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename: file.name }),
   });
   const urlData = await urlRes.json().catch(() => ({}));
-  if (!urlRes.ok) throw new Error(urlData.error ?? "Could not get upload URL");
-
-  // 2. Upload directly to Supabase Storage
+  if (!urlRes.ok) {
+    throw new Error(
+      urlData.error === "Supabase service key not configured."
+        ? "Manjka SUPABASE_SERVICE_ROLE_KEY v Netlify env vars."
+        : (urlData.error ?? "Upload URL ni uspel")
+    );
+  }
   const uploadRes = await fetch(urlData.signedUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type || "application/octet-stream" },
     body: file,
   });
-  if (!uploadRes.ok) throw new Error("Image upload failed");
-
+  if (!uploadRes.ok) throw new Error(`Supabase Storage upload napaka (${uploadRes.status}). Preverite bucket 'product-images'.`);
   return urlData.publicUrl as string;
 }
 
@@ -141,13 +263,12 @@ function ImageUploader({ images, onChange }: { images: string[]; onChange: (imgs
     const urls: string[] = [];
     for (const file of Array.from(files)) {
       try {
-        const url = await uploadImage(file);
-        urls.push(url);
+        urls.push(await uploadImage(file));
       } catch (e) {
-        toast.error(`Upload napaka: ${(e as Error).message}`);
+        toast.error(`Napaka pri uploadu: ${(e as Error).message}`);
       }
     }
-    onChange([...images, ...urls]);
+    if (urls.length) onChange([...images, ...urls]);
     setUploading(false);
   };
 
@@ -156,89 +277,189 @@ function ImageUploader({ images, onChange }: { images: string[]; onChange: (imgs
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-2">Slike <span className="text-muted-foreground font-normal">(prva slika = naslovna)</span></label>
+      <label className="block text-sm font-medium mb-2">
+        Slike <span className="text-muted-foreground font-normal text-xs">(prva = naslovna)</span>
+      </label>
       <div className="flex flex-wrap gap-3">
         {images.map((url, i) => (
           <div key={url} className="relative h-20 w-20 rounded-xl overflow-hidden border border-border group">
             <img src={url} alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
               {i !== 0 && (
                 <button type="button" onClick={() => moveFirst(url)} title="Nastavi kot naslovno"
-                  className="rounded-full bg-white/90 px-1.5 py-0.5 text-xs font-medium text-gray-800">1.</button>
+                  className="rounded bg-white/90 px-1.5 py-0.5 text-xs font-bold text-gray-800">1.</button>
               )}
               <button type="button" onClick={() => remove(url)}
                 className="rounded-full bg-red-500 p-1 text-white"><X className="h-3 w-3" /></button>
             </div>
-            {i === 0 && <span className="absolute bottom-0 left-0 right-0 bg-primary text-primary-foreground text-center text-xs py-0.5">Naslovna</span>}
+            {i === 0 && (
+              <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-primary-foreground text-center text-[10px] py-0.5">
+                Naslovna
+              </span>
+            )}
           </div>
         ))}
-
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
           className="h-20 w-20 rounded-xl border-2 border-dashed border-border hover:border-primary flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
-          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><ImageIcon className="h-5 w-5" /><span className="text-xs">Dodaj</span></>}
+          {uploading
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : <><ImageIcon className="h-5 w-5" /><span className="text-xs">Dodaj</span></>
+          }
         </button>
       </div>
-      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Color tag input
+// Device name autocomplete
 // ---------------------------------------------------------------------------
 
-function ColorInput({ colors, onChange }: { colors: string[]; onChange: (c: string[]) => void }) {
-  const [input, setInput] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
+function DeviceNameInput({
+  value, onChange, onDeviceSelect,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onDeviceSelect: (entry: DeviceEntry) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const deviceNames = Object.keys(DEVICE_DB);
+  const suggestions = value.length >= 2
+    ? deviceNames.filter(n => n.toLowerCase().includes(value.toLowerCase())).slice(0, 8)
+    : [];
 
-  const add = (color: string) => {
-    const c = color.trim();
-    if (!c || colors.includes(c)) return;
-    onChange([...colors, c]);
-    setInput("");
-    setShowSuggestions(false);
+  const select = (name: string) => {
+    onChange(name);
+    onDeviceSelect(DEVICE_DB[name]);
+    setOpen(false);
   };
 
-  const remove = (c: string) => onChange(colors.filter(x => x !== c));
-
-  const suggestions = SUGGESTED_COLORS.filter(
-    c => !colors.includes(c) && c.toLowerCase().includes(input.toLowerCase())
-  );
-
   return (
-    <div>
-      <label className="block text-sm font-medium mb-2">Barve <span className="text-muted-foreground font-normal">(opcijsko — za barvne variante)</span></label>
-
-      {colors.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-2">
-          {colors.map(c => (
-            <span key={c} className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs font-medium">
-              {c}
-              <button type="button" onClick={() => remove(c)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
-            </span>
+    <div className="relative">
+      <label className="block text-sm font-medium mb-1">Ime naprave *</label>
+      <input
+        type="text" required
+        placeholder="Začni tipkati npr. iPhone 16 Pro..."
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-30 top-full mt-1 left-0 right-0 bg-card border border-border rounded-xl shadow-card max-h-52 overflow-y-auto">
+          {suggestions.map(name => (
+            <button key={name} type="button" onMouseDown={() => select(name)}
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-secondary transition-colors flex items-center justify-between">
+              <span>{name}</span>
+              <span className="text-xs text-muted-foreground ml-2">
+                {CATEGORIES.find(c => c.value === DEVICE_DB[name].category)?.label}
+              </span>
+            </button>
           ))}
         </div>
       )}
+    </div>
+  );
+}
 
-      <div className="relative">
-        <input
-          type="text" placeholder="Dodaj barvo (npr. Midnight) + Enter"
-          value={input}
-          onChange={e => { setInput(e.target.value); setShowSuggestions(true); }}
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(input); } }}
-          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
-        />
-        {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-card border border-border rounded-xl shadow-card max-h-44 overflow-y-auto">
-            {suggestions.slice(0, 10).map(s => (
-              <button key={s} type="button" onMouseDown={() => add(s)}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-secondary transition-colors">{s}</button>
-            ))}
-          </div>
-        )}
+// ---------------------------------------------------------------------------
+// Color circles picker
+// ---------------------------------------------------------------------------
+
+function ColorPicker({
+  suggested, selected, onChange,
+}: {
+  suggested: string[];
+  selected: string[];
+  onChange: (c: string[]) => void;
+}) {
+  const toggle = (c: string) =>
+    onChange(selected.includes(c) ? selected.filter(x => x !== c) : [...selected, c]);
+
+  if (suggested.length === 0) return null;
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-2">
+        Barve <span className="text-xs text-muted-foreground font-normal">(izberi katere imaš na zalogi)</span>
+      </label>
+      <div className="flex flex-wrap gap-3">
+        {suggested.map(color => {
+          const hex = COLOR_HEX[color] ?? "#888";
+          const isSelected = selected.includes(color);
+          const darkCheck = needsDarkCheck(hex);
+          return (
+            <button
+              key={color} type="button" onClick={() => toggle(color)}
+              title={color}
+              className="relative group flex flex-col items-center gap-1"
+            >
+              <span
+                className={`block h-9 w-9 rounded-full transition-all ${isSelected ? "ring-[3px] ring-primary ring-offset-2" : "ring-1 ring-black/10 hover:ring-2 hover:ring-primary/50"}`}
+                style={{ backgroundColor: hex }}
+              >
+                {isSelected && (
+                  <Check
+                    className={`h-4 w-4 absolute inset-0 m-auto ${darkCheck ? "text-gray-800" : "text-white"}`}
+                    style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)" }}
+                  />
+                )}
+              </span>
+              <span className="text-[10px] text-muted-foreground max-w-[52px] text-center leading-tight group-hover:text-foreground transition-colors">
+                {color}
+              </span>
+            </button>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Storage pills picker
+// ---------------------------------------------------------------------------
+
+function StoragePicker({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (s: string[]) => void }) {
+  if (options.length === 0) return null;
+  const toggle = (s: string) =>
+    onChange(selected.includes(s) ? selected.filter(x => x !== s) : [...selected, s]);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-2">
+        Kapaciteta <span className="text-xs text-muted-foreground font-normal">(izberi katere variante imaš)</span>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {options.map(s => (
+          <button key={s} type="button" onClick={() => toggle(s)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-colors ${selected.includes(s) ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/60"}`}>
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Toggle
+// ---------------------------------------------------------------------------
+
+function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <button type="button" onClick={() => onChange(!value)}
+        className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${value ? "bg-primary" : "bg-muted"}`}>
+        <span
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+          style={{ transform: value ? "translateX(18px)" : "translateX(2px)" }}
+        />
+      </button>
+      <span className="text-sm font-medium">{label}</span>
     </div>
   );
 }
@@ -249,9 +470,11 @@ function ColorInput({ colors, onChange }: { colors: string[]; onChange: (c: stri
 
 const EMPTY_FORM = {
   name: "", description: "", price: "", original_price: "",
-  category: "telefoni", condition: "odlicno",
-  images: [] as string[], colors: [] as string[],
+  category: "telefoni" as Category, condition: "odlicno",
+  images: [] as string[], colors: [] as string[], storage: [] as string[],
   stock_status: "na_zalogi", delivery_days: "", available: true,
+  _suggestedColors: [] as string[],
+  _suggestedStorage: [] as string[],
 };
 
 type FormState = typeof EMPTY_FORM;
@@ -266,22 +489,37 @@ function ProductForm({ initial, onSave, onCancel }: {
 
   const set = (k: string, v: unknown) => setForm(p => ({ ...p, [k]: v }));
 
+  const handleDeviceSelect = (entry: DeviceEntry) => {
+    setForm(p => ({
+      ...p,
+      category: entry.category,
+      _suggestedColors: entry.colors,
+      _suggestedStorage: entry.storage,
+      colors: [],
+      storage: [],
+    }));
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.price) { toast.error("Ime in cena sta obvezna."); return; }
+    const priceInt = parseInt(form.price);
+    if (!form.name.trim()) { toast.error("Vnesite ime naprave."); return; }
+    if (isNaN(priceInt) || priceInt < 1) { toast.error("Vnesite veljavno ceno."); return; }
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
         description: form.description.trim(),
-        price: parseInt(form.price),
+        price: priceInt,
         original_price: form.original_price ? parseInt(form.original_price) : null,
         category: form.category,
         condition: form.condition,
         images: form.images,
         colors: form.colors,
+        storage: form.storage,
         stock_status: form.stock_status,
-        delivery_days: form.stock_status === "po_narocilu" && form.delivery_days ? parseInt(form.delivery_days) : null,
+        delivery_days: form.stock_status === "po_narocilu" && form.delivery_days
+          ? parseInt(form.delivery_days) : null,
         available: form.available,
       };
       const id = (initial as { id?: string } | undefined)?.id;
@@ -296,21 +534,20 @@ function ProductForm({ initial, onSave, onCancel }: {
   };
 
   return (
-    <form onSubmit={save} className="bg-card rounded-2xl border border-border p-6 space-y-5">
-      {/* Name + description */}
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Ime izdelka *</label>
-          <input type="text" required placeholder="npr. iPhone 14 Pro 256GB"
-            value={form.name} onChange={e => set("name", e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Opis</label>
-          <textarea rows={2} placeholder="Kratko stanje, oprema, opombe..."
-            value={form.description} onChange={e => set("description", e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary resize-none" />
-        </div>
+    <form onSubmit={save} className="bg-card rounded-2xl border border-border p-6 space-y-6">
+      {/* Name autocomplete */}
+      <DeviceNameInput
+        value={form.name}
+        onChange={v => set("name", v)}
+        onDeviceSelect={handleDeviceSelect}
+      />
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Opis</label>
+        <textarea rows={2} placeholder="Kratko stanje, oprema, opombe..."
+          value={form.description} onChange={e => set("description", e.target.value)}
+          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary resize-none" />
       </div>
 
       {/* Price */}
@@ -322,8 +559,8 @@ function ProductForm({ initial, onSave, onCancel }: {
             className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Prvotna cena (€) — za prikaz popusta</label>
-          <input type="number" min="1" placeholder="549"
+          <label className="block text-sm font-medium mb-1">Prvotna cena (€) — popust</label>
+          <input type="number" min="1" placeholder="549 (neobvezno)"
             value={form.original_price} onChange={e => set("original_price", e.target.value)}
             className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary" />
         </div>
@@ -341,6 +578,9 @@ function ProductForm({ initial, onSave, onCancel }: {
               </button>
             ))}
           </div>
+          {form._suggestedColors.length > 0 && (
+            <p className="mt-2 text-xs text-emerald-600">Kategorija zaznana samodejno</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium mb-2">Stanje *</label>
@@ -367,35 +607,44 @@ function ProductForm({ initial, onSave, onCancel }: {
           ))}
         </div>
         {form.stock_status === "po_narocilu" && (
-          <div className="mt-3">
-            <label className="block text-xs text-muted-foreground mb-1">Dobavni rok (dni)</label>
-            <input type="number" min="1" max="90" placeholder="npr. 7"
+          <div className="mt-3 flex items-center gap-2">
+            <label className="text-xs text-muted-foreground whitespace-nowrap">Dobavni rok:</label>
+            <input type="number" min="1" max="90" placeholder="7"
               value={form.delivery_days} onChange={e => set("delivery_days", e.target.value)}
-              className="w-32 rounded-xl border border-border bg-background px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+              className="w-24 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <span className="text-xs text-muted-foreground">dni</span>
           </div>
         )}
       </div>
 
-      {/* Colors */}
-      <ColorInput colors={form.colors} onChange={c => set("colors", c)} />
+      {/* Color circles */}
+      <ColorPicker
+        suggested={form._suggestedColors}
+        selected={form.colors}
+        onChange={c => set("colors", c)}
+      />
+
+      {/* Storage pills */}
+      <StoragePicker
+        options={form._suggestedStorage}
+        selected={form.storage}
+        onChange={s => set("storage", s)}
+      />
 
       {/* Images */}
       <ImageUploader images={form.images} onChange={imgs => set("images", imgs)} />
 
       {/* Visible toggle */}
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={() => set("available", !form.available)}
-          className={`relative w-10 h-6 rounded-full transition-colors ${form.available ? "bg-primary" : "bg-muted"}`}>
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.available ? "translate-x-[18px]" : "translate-x-0.5"}`} />
-        </button>
-        <span className="text-sm font-medium">{form.available ? "Vidno v shopu" : "Skrito"}</span>
-      </div>
+      <Toggle value={form.available} onChange={v => set("available", v)}
+        label={form.available ? "Vidno v shopu" : "Skrito"} />
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-2 border-t border-border">
         <Button type="submit" className="rounded-full" disabled={saving}>
-          {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem...</> : "Shrani"}
+          {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Shranjujem...</> : "Shrani izdelek"}
         </Button>
-        {onCancel && <Button type="button" variant="outline" className="rounded-full" onClick={onCancel}>Prekliči</Button>}
+        {onCancel && (
+          <Button type="button" variant="outline" className="rounded-full" onClick={onCancel}>Prekliči</Button>
+        )}
       </div>
     </form>
   );
@@ -426,10 +675,21 @@ function ProductRow({ product, onRefresh }: { product: ShopProduct; onRefresh: (
     <div className="mb-4">
       <ProductForm
         initial={{
-          ...product,
+          name: product.name,
+          description: product.description,
           price: String(product.price),
           original_price: product.original_price ? String(product.original_price) : "",
+          category: product.category as Category,
+          condition: product.condition,
+          images: product.images,
+          colors: product.colors,
+          storage: product.storage ?? [],
+          stock_status: product.stock_status,
           delivery_days: product.delivery_days ? String(product.delivery_days) : "",
+          available: product.available,
+          _suggestedColors: product.colors,
+          _suggestedStorage: product.storage ?? [],
+          id: product.id,
         }}
         onSave={() => { setEditing(false); onRefresh(); }}
         onCancel={() => setEditing(false)}
@@ -443,8 +703,10 @@ function ProductRow({ product, onRefresh }: { product: ShopProduct; onRefresh: (
   return (
     <div className={`flex items-center gap-4 rounded-2xl border p-4 transition-opacity ${product.available ? "bg-card border-border" : "bg-muted/30 border-border opacity-60"}`}>
       <div className="h-14 w-14 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-        {img ? <img src={img} alt={product.name} className="h-full w-full object-cover" />
-          : <div className="h-full w-full flex items-center justify-center"><ImageIcon className="h-6 w-6 text-muted-foreground/40" /></div>}
+        {img
+          ? <img src={img} alt={product.name} className="h-full w-full object-cover" />
+          : <div className="h-full w-full flex items-center justify-center"><ImageIcon className="h-6 w-6 text-muted-foreground/40" /></div>
+        }
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm truncate">{product.name}</p>
@@ -454,8 +716,17 @@ function ProductRow({ product, onRefresh }: { product: ShopProduct; onRefresh: (
             {CONDITIONS.find(c => c.value === product.condition)?.label}
           </span>
           {stock && <span className={`text-xs rounded-full px-2 py-0.5 ${stock.color}`}>{stock.label}</span>}
-          {product.colors.length > 0 && <span className="text-xs text-muted-foreground">{product.colors.join(", ")}</span>}
         </div>
+        {/* Color swatches preview */}
+        {product.colors.length > 0 && (
+          <div className="flex gap-1 mt-1.5">
+            {product.colors.map(c => (
+              <span key={c} title={c}
+                className="h-4 w-4 rounded-full ring-1 ring-black/10"
+                style={{ backgroundColor: COLOR_HEX[c] ?? "#888" }} />
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
         <button title={product.available ? "Skrij" : "Objavi"} onClick={toggleAvailable} disabled={loading}
@@ -494,7 +765,6 @@ function AdminPage() {
   useEffect(() => { load(); }, []);
 
   const available = products.filter(p => p.available).length;
-  const hidden = products.filter(p => !p.available).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -511,12 +781,11 @@ function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-10">
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: "Skupaj",  value: products.length, color: "text-foreground" },
-            { label: "Vidno",   value: available,        color: "text-emerald-600" },
-            { label: "Skrito",  value: hidden,           color: "text-muted-foreground" },
+            { label: "Skupaj", value: products.length,                         color: "text-foreground" },
+            { label: "Vidno",  value: available,                               color: "text-emerald-600" },
+            { label: "Skrito", value: products.length - available,             color: "text-muted-foreground" },
           ].map(s => (
             <div key={s.label} className="bg-card rounded-2xl border border-border p-5 text-center">
               <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -525,7 +794,6 @@ function AdminPage() {
           ))}
         </div>
 
-        {/* Add product */}
         <div className="mb-8">
           {showForm ? (
             <>
@@ -539,7 +807,6 @@ function AdminPage() {
           )}
         </div>
 
-        {/* Product list */}
         <div>
           <h2 className="font-semibold text-lg mb-4">Vsi izdelki</h2>
           {loading ? (
