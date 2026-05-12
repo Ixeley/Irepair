@@ -168,7 +168,7 @@ function PurchaseModal({ product, selectedColor, onClose }: {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("/.netlify/functions/send-purchase-inquiry", {
+      const res = await fetch("/api/send-purchase-inquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -272,7 +272,7 @@ function SellSection() {
     if (!form.deviceType || !form.condition) { toast.error("Izberite tip naprave in stanje."); return; }
     setLoading(true);
     try {
-      const res = await fetch("/.netlify/functions/send-sell-inquiry", {
+      const res = await fetch("/api/send-sell-inquiry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
