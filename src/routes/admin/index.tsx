@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle, Users } from "lucide-react";
+import type { VisitorState } from "@/lib/visitor-presence";
+import { VISITOR_CHANNEL } from "@/lib/visitor-presence";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/")({
@@ -744,6 +746,103 @@ function ProductRow({ product, onRefresh }: { product: ShopProduct; onRefresh: (
 }
 
 // ---------------------------------------------------------------------------
+// Live visitors
+// ---------------------------------------------------------------------------
+
+const STEP_LABELS = ["Naprava", "Model", "Težava", "Urgentnost", "Kontakt", "Potrditev"];
+const URGENCY_LABELS: Record<string, string> = {
+  standard: "Standardno", fast: "Hitra obdelava", urgent: "URGENTNO 24h",
+};
+
+function VisitorCard({ visitor }: { visitor: VisitorState }) {
+  const elapsed = useMemo(() => {
+    const mins = Math.floor((Date.now() - new Date(visitor.joinedAt).getTime()) / 60000);
+    if (mins < 1) return "< 1 min";
+    return `${mins} min`;
+  }, [visitor.joinedAt]);
+
+  const isBooking = visitor.activity === "booking";
+
+  return (
+    <div className={`rounded-2xl border p-4 ${isBooking ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+      <div className="flex items-center justify-between gap-4 mb-1">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${isBooking ? "bg-primary animate-pulse" : "bg-emerald-500"}`} />
+          <span className="text-xs font-mono text-muted-foreground">{visitor.sessionId}</span>
+        </div>
+        <span className="text-xs text-muted-foreground">{elapsed}</span>
+      </div>
+
+      {isBooking ? (
+        <div className="mt-2 space-y-2 text-xs">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
+            Korak {visitor.bookingStep}/6 — {STEP_LABELS[(visitor.bookingStep ?? 1) - 1]}
+          </span>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
+            {visitor.bookingDevice && <div><span className="text-muted-foreground">Naprava: </span><span className="font-medium">{visitor.bookingDevice}</span></div>}
+            {visitor.bookingModel  && <div><span className="text-muted-foreground">Model: </span><span className="font-medium">{visitor.bookingModel}</span></div>}
+            {visitor.bookingIssues?.length ? <div className="col-span-2"><span className="text-muted-foreground">Težave: </span><span className="font-medium">{visitor.bookingIssues.join(", ")}</span></div> : null}
+            {visitor.bookingUrgency && <div><span className="text-muted-foreground">Urgentnost: </span><span className="font-medium">{URGENCY_LABELS[visitor.bookingUrgency] ?? visitor.bookingUrgency}</span></div>}
+            {visitor.bookingName  && <div><span className="text-muted-foreground">Ime: </span><span className="font-medium">{visitor.bookingName}</span></div>}
+            {visitor.bookingPhone && <div><span className="text-muted-foreground">Tel: </span><span className="font-medium">{visitor.bookingPhone}</span></div>}
+            {visitor.bookingEmail && <div className="col-span-2"><span className="text-muted-foreground">Email: </span><span className="font-medium">{visitor.bookingEmail}</span></div>}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground mt-1">Brska po strani</p>
+      )}
+    </div>
+  );
+}
+
+function LiveVisitors() {
+  const [visitors, setVisitors] = useState<VisitorState[]>([]);
+
+  useEffect(() => {
+    const channel = supabase.channel(VISITOR_CHANNEL);
+
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState<VisitorState>();
+      setVisitors(Object.values(state).flat());
+    });
+
+    channel.subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  const booking = visitors.filter(v => v.activity === "booking").length;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="font-semibold text-lg flex items-center gap-2">
+          <Users className="h-5 w-5 text-muted-foreground" /> Živi obiski
+        </h2>
+        <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-0.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          {visitors.length} {visitors.length === 1 ? "obiskovalec" : "obiskovalcev"}
+        </span>
+        {booking > 0 && (
+          <span className="flex items-center gap-1.5 text-sm font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-0.5">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            {booking} izpolnjuje obrazec
+          </span>
+        )}
+      </div>
+
+      {visitors.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4">Trenutno ni aktivnih obiskovalcev.</p>
+      ) : (
+        <div className="space-y-2">
+          {visitors.map(v => <VisitorCard key={v.sessionId} visitor={v} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Admin page
 // ---------------------------------------------------------------------------
 
@@ -807,6 +906,8 @@ function AdminPage() {
             </div>
           </div>
         )}
+        <LiveVisitors />
+
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: "Skupaj", value: products.length,                         color: "text-foreground" },

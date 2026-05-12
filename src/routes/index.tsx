@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { initVisitorTracking } from "@/lib/visitor-presence";
 import { TopBar } from "@/components/site/TopBar";
 import { Nav } from "@/components/site/Nav";
 import { Hero } from "@/components/site/Hero";
@@ -19,6 +21,10 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  useEffect(() => {
+    return initVisitorTracking("home");
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <TopBar />
