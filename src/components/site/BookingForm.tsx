@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { updateVisitorState } from "@/lib/visitor-presence";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -249,6 +250,25 @@ export function BookingForm() {
       if (dm) setModel(dm);
     }
   }, []);
+
+  const trackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (trackTimer.current) clearTimeout(trackTimer.current);
+    trackTimer.current = setTimeout(() => {
+      updateVisitorState({
+        activity: "booking",
+        bookingStep: step,
+        bookingDevice: device || undefined,
+        bookingModel: model || undefined,
+        bookingIssues: issues.length ? issues : undefined,
+        bookingUrgency: urgency,
+        bookingName: contact.name || undefined,
+        bookingEmail: contact.email || undefined,
+        bookingPhone: contact.phone || undefined,
+      });
+    }, 400);
+    return () => { if (trackTimer.current) clearTimeout(trackTimer.current); };
+  }, [step, device, model, issues, urgency, contact]);
 
   const toggleIssue = (i: string) =>
     setIssues((arr) => (arr.includes(i) ? arr.filter((x) => x !== i) : [...arr, i]));
