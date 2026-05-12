@@ -72,6 +72,9 @@ export type Database = {
           category: string
           condition: string
           images: string[]
+          colors: string[]
+          stock_status: string
+          delivery_days: number | null
           available: boolean
           created_at: string
         }
@@ -84,6 +87,9 @@ export type Database = {
           category: string
           condition: string
           images?: string[]
+          colors?: string[]
+          stock_status?: string
+          delivery_days?: number | null
           available?: boolean
           created_at?: string
         }
@@ -96,6 +102,9 @@ export type Database = {
           category?: string
           condition?: string
           images?: string[]
+          colors?: string[]
+          stock_status?: string
+          delivery_days?: number | null
           available?: boolean
           created_at?: string
         }
