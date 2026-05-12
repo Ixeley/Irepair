@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Check } from "lucide-react";
+import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
-// Pricing data (mirrors BookingForm)
+// Pricing (mirrors BookingForm)
 // ---------------------------------------------------------------------------
 
 const DEVICES = ["iPhone", "iPad", "MacBook", "iMac", "Apple Watch", "MagSafe", "Drugo"];
 
-const ISSUES = [
+const ALL_ISSUES = [
   "Poškodovan zaslon",
   "Ne polni / Baterija",
   "Ne vključi se",
@@ -58,22 +58,23 @@ const DEVICE_MODELS: Record<string, string[]> = {
   Drugo: ["Drugo"],
 };
 
-type Tier = "pro_max"|"pro"|"standard"|"mini_se"|"macbook_new"|"macbook_intel"|"ipad_pro"|"ipad_std"|"watch"|"other";
+const MAC_UPSELL_OPTIONS = [
+  "Čiščenje ventilatorjev — od 49€",
+  "Nadgradnja SSD — od 79€",
+  "Optimizacija performansa — od 69€",
+];
 
+type Tier = "pro_max"|"pro"|"standard"|"mini_se"|"macbook_new"|"macbook_intel"|"ipad_pro"|"ipad_std"|"watch"|"other";
 const MODEL_TIER: Record<string, Tier> = {
   "iPhone 16 Pro Max":"pro_max","iPhone 15 Pro Max":"pro_max","iPhone 14 Pro Max":"pro_max","iPhone 13 Pro Max":"pro_max","iPhone 12 Pro Max":"pro_max",
-  "iPhone 16 Pro":"pro","iPhone 16 Plus":"pro","iPhone 16":"pro",
-  "iPhone 15 Pro":"pro","iPhone 15 Plus":"pro","iPhone 15":"pro",
-  "iPhone 14 Pro":"pro","iPhone 14 Plus":"pro","iPhone 14":"pro",
-  "iPhone 13 Pro":"pro","iPhone 13":"standard",
-  "iPhone 12 Pro":"pro","iPhone 12":"standard",
-  "iPhone 11 Pro Max":"pro","iPhone 11 Pro":"pro","iPhone 11":"standard",
+  "iPhone 16 Pro":"pro","iPhone 16 Plus":"pro","iPhone 16":"pro","iPhone 15 Pro":"pro","iPhone 15 Plus":"pro","iPhone 15":"pro",
+  "iPhone 14 Pro":"pro","iPhone 14 Plus":"pro","iPhone 14":"pro","iPhone 13 Pro":"pro","iPhone 13":"standard",
+  "iPhone 12 Pro":"pro","iPhone 12":"standard","iPhone 11 Pro Max":"pro","iPhone 11 Pro":"pro","iPhone 11":"standard",
   "iPhone 13 mini":"mini_se","iPhone 12 mini":"mini_se",
   "iPhone SE (3. gen)":"mini_se","iPhone SE (2. gen)":"mini_se","iPhone SE (1. gen)":"mini_se",
   "iPhone XS Max":"standard","iPhone XS":"standard","iPhone XR":"standard","iPhone X":"standard",
-  'MacBook Pro 16" (M4/M3)':"macbook_new",'MacBook Pro 14" (M4/M3)':"macbook_new",
-  'MacBook Pro 16" (M2/M1)':"macbook_new",'MacBook Pro 14" (M2/M1)':"macbook_new",
-  'MacBook Pro 13" (M2/M1)':"macbook_new",'MacBook Air 15" (M3/M2)':"macbook_new",
+  'MacBook Pro 16" (M4/M3)':"macbook_new",'MacBook Pro 14" (M4/M3)':"macbook_new",'MacBook Pro 16" (M2/M1)':"macbook_new",
+  'MacBook Pro 14" (M2/M1)':"macbook_new",'MacBook Pro 13" (M2/M1)':"macbook_new",'MacBook Air 15" (M3/M2)':"macbook_new",
   'MacBook Air 13" (M3)':"macbook_new",'MacBook Air 13" (M2)':"macbook_new",'MacBook Air 13" (M1)':"macbook_new",
   'MacBook Pro 13" (Intel 2019–2020)':"macbook_intel",'MacBook Pro 15"/16" (Intel)':"macbook_intel",
   'MacBook Air (Intel 2018–2020)':"macbook_intel","Starejši MacBook":"macbook_intel",
@@ -83,7 +84,6 @@ const MODEL_TIER: Record<string, Tier> = {
   "Apple Watch Ultra 2":"watch","Apple Watch Series 10":"watch","Apple Watch Series 9":"watch",
   "Apple Watch Series 8":"watch","Apple Watch SE (2. gen)":"watch","Apple Watch Series 7":"watch",
 };
-
 const ISSUE_PRICES: Record<string, Partial<Record<Tier, string>>> = {
   "Poškodovan zaslon":   { pro_max:"169–189€", pro:"139–159€", standard:"109–129€", mini_se:"89–99€", ipad_pro:"179–229€", ipad_std:"119–149€", macbook_new:"299–399€", macbook_intel:"199–279€", watch:"99–149€" },
   "Ne polni / Baterija": { pro_max:"89€", pro:"79€", standard:"69€", mini_se:"59€", ipad_pro:"99€", ipad_std:"79€", macbook_new:"129€", macbook_intel:"99€", watch:"79€" },
@@ -100,61 +100,96 @@ function getPrice(model: string, issue: string): string {
   if (!tier) return "Po diagnostiki";
   return ISSUE_PRICES[issue]?.[tier] ?? "Po diagnostiki";
 }
-
-function extractMin(price: string): number {
-  const m = price.match(/(\d+)/);
-  return m ? parseInt(m[1]) : 0;
-}
-
-function calcCost(model: string, issues: string[], urgency: string) {
-  const DIAG = 20;
-  const lines: { label: string; price: string }[] = [
-    { label: "Diagnostika", price: "20€" },
-  ];
-  let min = DIAG;
+function extractMin(p: string): number { const m = p.match(/(\d+)/); return m ? parseInt(m[1]) : 0; }
+function calcCost(model: string, issues: string[], urgency: string, extra: string) {
+  const lines: { label: string; price: string }[] = [{ label: "Diagnostika", price: "20€" }];
+  let min = 20;
   for (const issue of issues) {
     const p = getPrice(model, issue);
     lines.push({ label: issue, price: p });
     min += extractMin(p);
   }
-  if (urgency === "urgent") {
-    lines.push({ label: "Urgentno doplačilo", price: "+50€" });
-    min += 50;
-  }
+  if (urgency === "urgent") { lines.push({ label: "Urgentno doplačilo", price: "+50€" }); min += 50; }
+  if (extra) { const ep = extra.match(/\d+/); if (ep) { lines.push({ label: extra.replace(/ — .*/, ""), price: `${ep[0]}€` }); min += parseInt(ep[0]); } }
   return { lines, total: `od ${min}€` };
 }
 
 // ---------------------------------------------------------------------------
-// Chat state machine
+// Device detection
 // ---------------------------------------------------------------------------
 
-type Step =
-  | "device" | "model" | "issues" | "urgency"
-  | "name" | "phone" | "email" | "confirm" | "sending" | "done";
+function detectDeviceType(): string | null {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "iPad";
+  if (/Macintosh/.test(ua)) return "MacBook";
+  return null;
+}
+function detectIphoneModel(): string {
+  const w = Math.min(screen.width, screen.height);
+  const h = Math.max(screen.width, screen.height);
+  if (w === 430) return "iPhone 16 Plus";
+  if (w === 402) return "iPhone 16 Pro";
+  if (w === 393 && h >= 874) return "iPhone 16 Pro";
+  if (w === 393) return "iPhone 16";
+  if (w === 390) return "iPhone 14";
+  if (w === 375 && h === 812) return "iPhone 13 mini";
+  if (w === 375 && h === 667) return "iPhone SE (2. gen)";
+  if (w === 320) return "iPhone SE (1. gen)";
+  return "iPhone 16 Pro Max";
+}
+function detectIpadModel(): string {
+  const w = Math.min(screen.width, screen.height);
+  if (w >= 1024) return 'iPad Pro 13" (M4)';
+  if (w >= 834) return 'iPad Pro 11" (M4)';
+  if (w >= 820) return 'iPad Air 11" (M2)';
+  if (w >= 768) return "iPad (10. gen)";
+  return "iPad mini 7";
+}
+function detectModel(device: string): string | null {
+  if (device === "iPhone") return detectIphoneModel();
+  if (device === "iPad") return detectIpadModel();
+  return null;
+}
+
+function isYes(t: string): boolean { return /^(da|ja|yes|ok|seveda|vsekakor)/i.test(t.trim()); }
+function isNo(t: string): boolean  { return /^(ne|no|nope|nič|nic)/i.test(t.trim()); }
+
+// ---------------------------------------------------------------------------
+// Message types
+// ---------------------------------------------------------------------------
 
 interface Msg {
   role: "bot" | "user";
   text: string;
-  options?: string[];          // single-choice buttons
-  multiOptions?: string[];     // multi-select checkboxes → shows Nadaljuj button
-  sendButton?: boolean;        // show "Pošlji povpraševanje" button
+  buttons?: { label: string; value: string }[];
+  issueButtons?: string[];   // remaining issues to pick from
+  sendButton?: boolean;
 }
 
-interface DiagState {
-  device: string;
-  model: string;
-  issues: string[];
-  urgency: string;
-  name: string;
-  phone: string;
-  email: string;
-}
+type Step =
+  | "idle" | "device_confirm" | "device_select" | "model_select"
+  | "issue_first" | "issue_more" | "issue_add"
+  | "urgency" | "upsell" | "upsell_pick"
+  | "name" | "phone" | "email"
+  | "confirm" | "sending" | "done";
 
-const EMPTY: DiagState = { device:"", model:"", issues:[], urgency:"standard", name:"", phone:"", email:"" };
-
-function botMsg(text: string, extras?: Partial<Msg>): Msg {
-  return { role: "bot", text, ...extras };
+interface Diag {
+  device: string; model: string;
+  detectedDevice: string | null; detectedModel: string | null;
+  issues: string[]; urgency: string; extra: string;
+  name: string; phone: string; email: string;
 }
+const EMPTY_DIAG: Diag = {
+  device:"", model:"", detectedDevice:null, detectedModel:null,
+  issues:[], urgency:"standard", extra:"",
+  name:"", phone:"", email:"",
+};
+
+const GREETING: Msg = {
+  role: "bot",
+  text: "Pozdravljeni! 👋 Sem iRepair pomočnik.\n\nOpišite težavo z napravo ali postavite vprašanje — pomagal vam bom oceniti stroške popravila.",
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -162,261 +197,354 @@ function botMsg(text: string, extras?: Partial<Msg>): Msg {
 
 export function ChatBubble() {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<Step>("device");
-  const [diag, setDiag] = useState<DiagState>(EMPTY);
-  const [pendingIssues, setPendingIssues] = useState<string[]>([]);
+  const [step, setStep] = useState<Step>("idle");
+  const [diag, setDiag] = useState<Diag>(EMPTY_DIAG);
+  const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Build the full message history from state
-  const messages = buildMessages(step, diag, pendingIssues);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
 
-  // Handle single-choice button click
-  const handleOption = (value: string) => {
-    if (step === "device") {
-      setDiag(d => ({ ...d, device: value, model: "", issues: [] }));
-      setPendingIssues([]);
-      setStep("model");
-    } else if (step === "model") {
-      setDiag(d => ({ ...d, model: value }));
-      setStep("issues");
-    } else if (step === "urgency") {
-      setDiag(d => ({ ...d, urgency: value }));
-      setStep("name");
+  const push = (...msgs: Msg[]) => setMessages(prev => [...prev, ...msgs]);
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  const remainingIssues = (current: string[]) =>
+    ALL_ISSUES.filter(i => !current.includes(i));
+
+  const isMac = (device: string) => device === "MacBook" || device === "iMac";
+
+  // ── after urgency is set, go to upsell (Mac) or straight to name ─────────
+  const afterUrgency = (d: Diag) => {
+    if (isMac(d.device)) {
+      setStep("upsell");
+      push({ role: "bot", text: "Ker imate Mac, vam lahko ponudimo tudi kakšno dodatno storitev — čiščenje, SSD nadgradnja ali optimizacija. Vas zanima kaj od tega?", buttons: [{ label: "Da, zanima me", value: "yes" }, { label: "Ne, hvala", value: "no" }] });
+    } else {
+      askName(d);
     }
   };
 
-  // Toggle issue in pending list
-  const toggleIssue = (issue: string) => {
-    setPendingIssues(prev =>
-      prev.includes(issue) ? prev.filter(i => i !== issue) : [...prev, issue]
-    );
+  const askName = (d: Diag) => {
+    const { lines, total } = calcCost(d.model, d.issues, d.urgency, d.extra);
+    const priceLines = lines.map(l => `  • ${l.label}: ${l.price}`).join("\n");
+    setStep("name");
+    push({ role: "bot", text: `💰 Ocena stroškov za ${d.model || d.device}:\n\n${priceLines}\n${"─".repeat(26)}\n  Skupaj: ${total}\n\n(Diagnostika 20€ se odšteje od popravila.)\n\nZa pošiljanje povpraševanja potrebujem vaše podatke.\n\nKako vam je ime?` });
   };
 
-  // Confirm issues and move on
-  const confirmIssues = () => {
-    if (pendingIssues.length === 0) return;
-    setDiag(d => ({ ...d, issues: pendingIssues }));
-    setStep("urgency");
-  };
+  // ── main action handler ──────────────────────────────────────────────────
 
-  // Handle free-text input (name / phone / email)
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
+  const handleAction = (userText: string, value?: string) => {
+    const val = value ?? userText;
+
+    // Idle → first user message
+    if (step === "idle") {
+      push({ role: "user", text: userText });
+      const dd = detectDeviceType();
+      const dm = dd ? detectModel(dd) : null;
+      const newDiag = { ...EMPTY_DIAG, detectedDevice: dd, detectedModel: dm };
+      setDiag(newDiag);
+
+      if (dd && dm) {
+        setStep("device_confirm");
+        push({ role: "bot", text: `Vidim, da pišete z ${dd} (${dm}). Ali potrebujete pomoč prav s to napravo?`, buttons: [{ label: `Da, imam ${dm}`, value: "yes" }, { label: "Ne, imam drugo napravo", value: "no" }] });
+      } else if (dd) {
+        setStep("device_confirm");
+        push({ role: "bot", text: `Vidim, da pišete z ${dd}. Ali potrebujete pomoč s to napravo?`, buttons: [{ label: `Da, ${dd}`, value: "yes" }, { label: "Ne, imam drugo napravo", value: "no" }] });
+      } else {
+        setStep("device_select");
+        push({ role: "bot", text: "Katera naprava vas skrbi?", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+      }
+      return;
+    }
+
+    // Device confirm
+    if (step === "device_confirm") {
+      push({ role: "user", text: userText });
+      if (val === "yes" || isYes(val)) {
+        const device = diag.detectedDevice!;
+        const model = diag.detectedModel ?? "";
+        const updated = { ...diag, device, model };
+        setDiag(updated);
+        if (model) {
+          setStep("issue_first");
+          push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: ALL_ISSUES });
+        } else {
+          setStep("model_select");
+          push({ role: "bot", text: `Kateri model ${device} imate?`, buttons: (DEVICE_MODELS[device] ?? ["Drugo"]).map(m => ({ label: m, value: m })) });
+        }
+      } else {
+        setStep("device_select");
+        push({ role: "bot", text: "Katera naprava vas skrbi?", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+      }
+      return;
+    }
+
+    // Device select
+    if (step === "device_select") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, device: val, model: "" };
+      setDiag(updated);
+      setStep("model_select");
+      push({ role: "bot", text: `Kateri model ${val} imate?`, buttons: (DEVICE_MODELS[val] ?? ["Drugo"]).map(m => ({ label: m, value: m })) });
+      return;
+    }
+
+    // Model select
+    if (step === "model_select") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, model: val };
+      setDiag(updated);
+      setStep("issue_first");
+      push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: ALL_ISSUES });
+      return;
+    }
+
+    // Issue first pick
+    if (step === "issue_first") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, issues: [val] };
+      setDiag(updated);
+      setStep("issue_more");
+      push({ role: "bot", text: `Razumem — ${val.toLowerCase()}. Je z napravo morda še kaj narobe?`, buttons: [{ label: "Da, še kaj je", value: "yes" }, { label: "Ne, samo to", value: "no" }] });
+      return;
+    }
+
+    // Issue more? yes/no
+    if (step === "issue_more") {
+      push({ role: "user", text: userText });
+      if (val === "yes" || isYes(val)) {
+        setStep("issue_add");
+        push({ role: "bot", text: "Izberite naslednjo težavo:", issueButtons: remainingIssues(diag.issues) });
+      } else {
+        setStep("urgency");
+        push({ role: "bot", text: "Kako urgentno potrebujete popravilo?", buttons: URGENCIES.map(u => ({ label: u.l, value: u.v })) });
+      }
+      return;
+    }
+
+    // Issue add
+    if (step === "issue_add") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, issues: [...diag.issues, val] };
+      setDiag(updated);
+      setStep("issue_more");
+      push({ role: "bot", text: `V redu. Je morda še kakšna težava?`, buttons: [{ label: "Da, še kaj je", value: "yes" }, { label: "Ne, to je vse", value: "no" }] });
+      return;
+    }
+
+    // Urgency
+    if (step === "urgency") {
+      const label = URGENCIES.find(u => u.v === val)?.l ?? val;
+      push({ role: "user", text: label });
+      const updated = { ...diag, urgency: val };
+      setDiag(updated);
+      afterUrgency(updated);
+      return;
+    }
+
+    // Upsell yes/no
+    if (step === "upsell") {
+      push({ role: "user", text: userText });
+      if (val === "yes" || isYes(val)) {
+        setStep("upsell_pick");
+        push({ role: "bot", text: "Katera storitev vas zanima?", buttons: [...MAC_UPSELL_OPTIONS.map(o => ({ label: o, value: o })), { label: "Kar vse skupaj 😄", value: "Čiščenje + SSD + Optimizacija" }] });
+      } else {
+        askName(diag);
+      }
+      return;
+    }
+
+    // Upsell pick
+    if (step === "upsell_pick") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, extra: val };
+      setDiag(updated);
+      askName(updated);
+      return;
+    }
+
+    // Name
     if (step === "name") {
-      setDiag(d => ({ ...d, name: text }));
+      const text = userText.trim();
+      push({ role: "user", text });
+      const updated = { ...diag, name: text };
+      setDiag(updated);
       setStep("phone");
-    } else if (step === "phone") {
-      setDiag(d => ({ ...d, phone: text }));
+      push({ role: "bot", text: `Hvala, ${text}! Katera je vaša telefonska številka?` });
+      return;
+    }
+
+    // Phone
+    if (step === "phone") {
+      const text = userText.trim();
+      push({ role: "user", text });
+      const updated = { ...diag, phone: text };
+      setDiag(updated);
       setStep("email");
-    } else if (step === "email") {
-      setDiag(d => ({ ...d, email: text }));
-      setStep("confirm");
+      push({ role: "bot", text: "In vaš e-mail naslov?" });
+      return;
+    }
+
+    // Email
+    if (step === "email") {
+      const text = userText.trim();
+      push({ role: "user", text });
+      const updated = { ...diag, email: text };
+      setDiag(updated);
+      showConfirm(updated);
+      return;
     }
   };
 
-  // Submit to send-booking function
+  const showConfirm = (d: Diag) => {
+    const urgLabel = URGENCIES.find(u => u.v === d.urgency)?.l ?? d.urgency;
+    const { total } = calcCost(d.model, d.issues, d.urgency, d.extra);
+    const lines = [
+      `📱 ${d.device}${d.model ? ` — ${d.model}` : ""}`,
+      `🔧 ${d.issues.join(", ")}`,
+      d.extra ? `➕ ${d.extra.replace(/ — .*/, "")}` : "",
+      `⚡ ${urgLabel}`,
+      `💰 Ocena: ${total}`,
+      ``,
+      `👤 ${d.name}`,
+      `📞 ${d.phone}`,
+      `📧 ${d.email}`,
+    ].filter(Boolean).join("\n");
+    setStep("confirm");
+    push({ role: "bot", text: `Odlično! Tukaj je povzetek:\n\n${lines}\n\nPotrdite pošiljanje na info@irepair.si — odgovorili vam bomo v 2 urah.`, sendButton: true });
+  };
+
   const handleSubmit = async () => {
     setSending(true);
     setStep("sending");
-    const { total } = calcCost(diag.model, diag.issues, diag.urgency);
+    const { total } = calcCost(diag.model, diag.issues, diag.urgency, diag.extra);
+    const description = [diag.extra ? `Dodatna storitev: ${diag.extra}.` : "", `Ocena: ${total}. Povpraševanje oddano prek klepeta.`].filter(Boolean).join(" ");
     try {
       const res = await fetch("/.netlify/functions/send-booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          device: diag.device,
-          model: diag.model,
-          issues: diag.issues,
-          urgency: diag.urgency,
-          name: diag.name,
-          phone: diag.phone,
-          email: diag.email,
-          description: `Ocena stroškov: ${total}. Povpraševanje oddano prek klepeta.`,
-          replacement: false,
-          totalCost: total,
-        }),
+        body: JSON.stringify({ device: diag.device, model: diag.model, issues: diag.issues, urgency: diag.urgency, name: diag.name, phone: diag.phone, email: diag.email, description, replacement: false, totalCost: total }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(json.error ?? "Napaka pri pošiljanju. Pokličite 059 023 951.");
+        toast.error(json.error ?? "Napaka. Pokličite 059 023 951.");
         setStep("confirm");
       } else {
         setStep("done");
+        push({ role: "bot", text: `✅ Povpraševanje je bilo poslano!\n\nOdgovorili vam bomo v 2 urah na ${diag.email}.\n\n📍 Koprska 94, Ljubljana\n📞 059 023 951\n🕐 Tor–Pet: 8:30–17:00` });
         toast.success("Povpraševanje poslano!");
       }
     } catch {
-      toast.error("Napaka pri pošiljanju. Pokličite nas na 059 023 951.");
+      toast.error("Napaka. Pokličite nas na 059 023 951.");
       setStep("confirm");
     } finally {
       setSending(false);
     }
   };
 
-  const isTextStep = step === "name" || step === "phone" || step === "email";
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    handleAction(text);
+  };
+
+  const isTextStep = ["idle","name","phone","email"].includes(step);
   const lastMsg = messages[messages.length - 1];
+
+  const placeholder =
+    step === "idle" ? "Opišite težavo ali postavite vprašanje..." :
+    step === "name" ? "Vaše ime in priimek..." :
+    step === "phone" ? "Telefonska številka..." :
+    step === "email" ? "E-mail naslov..." :
+    "Izberite možnost zgoraj...";
+
+  const resetChat = () => { setStep("idle"); setDiag(EMPTY_DIAG); setMessages([GREETING]); setInput(""); };
 
   return (
     <>
-      {/* Floating button */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-float"
-          aria-label="Odpri klepet"
-        >
+        <button onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-float" aria-label="Odpri klepet">
           <MessageCircle className="h-6 w-6" />
           <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-success ring-2 ring-background" />
         </button>
       )}
 
-      {/* Chat window */}
       {open && (
-        <div
-          className="fixed bottom-6 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm bg-card rounded-3xl shadow-card overflow-hidden animate-fade-up flex flex-col"
-          style={{ maxHeight: "calc(100vh - 3rem)" }}
-        >
+        <div className="fixed bottom-6 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm bg-card rounded-3xl shadow-card overflow-hidden animate-fade-up flex flex-col" style={{ maxHeight: "calc(100vh - 3rem)" }}>
           {/* Header */}
           <div className="gradient-primary text-primary-foreground p-4 flex items-center justify-between flex-shrink-0">
             <div>
-              <div className="font-semibold">iRepair diagnostika</div>
-              <div className="text-xs opacity-80 flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-success" /> Ocena stroškov brezplačna
-              </div>
+              <div className="font-semibold">iRepair pomočnik</div>
+              <div className="text-xs opacity-80 flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Ocena stroškov brezplačna</div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Zapri" className="hover:opacity-80">
-              <X className="h-5 w-5" />
-            </button>
+            <button onClick={() => setOpen(false)} aria-label="Zapri" className="hover:opacity-80"><X className="h-5 w-5" /></button>
           </div>
 
           {/* Messages */}
-          <div
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto p-4 bg-secondary/30 space-y-3 text-sm"
-            style={{ minHeight: "300px", maxHeight: "400px" }}
-          >
-            {messages.map((m, i) => (
-              <div key={i}>
-                <div
-                  className={`p-3 max-w-[88%] shadow-soft whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "ml-auto bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
-                      : "bg-card rounded-2xl rounded-tl-sm"
-                  }`}
-                >
-                  {m.text}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 bg-secondary/30 space-y-3 text-sm" style={{ minHeight: "300px", maxHeight: "420px" }}>
+            {messages.map((m, i) => {
+              const isLast = i === messages.length - 1;
+              return (
+                <div key={i}>
+                  <div className={`p-3 max-w-[88%] shadow-soft whitespace-pre-wrap ${m.role === "user" ? "ml-auto bg-primary text-primary-foreground rounded-2xl rounded-tr-sm" : "bg-card rounded-2xl rounded-tl-sm"}`}>
+                    {m.text}
+                  </div>
+
+                  {/* Generic buttons */}
+                  {m.buttons && isLast && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {m.buttons.map(b => (
+                        <button key={b.value} onClick={() => handleAction(b.label, b.value)} className="rounded-full border border-primary/40 bg-card px-3 py-1.5 text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                          {b.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Issue buttons (one-pick, vertical list) */}
+                  {m.issueButtons && isLast && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {m.issueButtons.map(issue => (
+                        <button key={issue} onClick={() => handleAction(issue)} className="rounded-full border border-primary/40 bg-card px-3 py-1.5 text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
+                          {issue}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Send button */}
+                  {m.sendButton && isLast && step === "confirm" && (
+                    <div className="mt-3 space-y-2">
+                      <Button className="w-full rounded-full shadow-glow" onClick={handleSubmit} disabled={sending}>
+                        {sending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam...</> : "✉️ Pošlji povpraševanje"}
+                      </Button>
+                      <button className="w-full text-xs text-muted-foreground hover:text-foreground" onClick={resetChat}>Začni znova</button>
+                    </div>
+                  )}
                 </div>
-
-                {/* Single-choice buttons */}
-                {m.options && i === messages.length - 1 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {m.options.map(opt => (
-                      <button
-                        key={opt}
-                        onClick={() => handleOption(opt)}
-                        className="rounded-full border border-primary/40 bg-card px-3 py-1.5 text-xs font-medium hover:bg-primary hover:text-primary-foreground transition-colors"
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Multi-select issues */}
-                {m.multiOptions && i === messages.length - 1 && (
-                  <div className="mt-2 space-y-1.5">
-                    {m.multiOptions.map(opt => (
-                      <label
-                        key={opt}
-                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer text-xs transition-colors ${
-                          pendingIssues.includes(opt)
-                            ? "border-primary bg-accent"
-                            : "border-border bg-card hover:border-primary/40"
-                        }`}
-                      >
-                        <span className={`h-4 w-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
-                          pendingIssues.includes(opt) ? "bg-primary border-primary" : "border-muted-foreground"
-                        }`}>
-                          {pendingIssues.includes(opt) && <Check className="h-3 w-3 text-primary-foreground" />}
-                        </span>
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={pendingIssues.includes(opt)}
-                          onChange={() => toggleIssue(opt)}
-                        />
-                        {opt}
-                      </label>
-                    ))}
-                    <Button
-                      size="sm"
-                      className="w-full rounded-full mt-2"
-                      disabled={pendingIssues.length === 0}
-                      onClick={confirmIssues}
-                    >
-                      Nadaljuj ({pendingIssues.length} izbrano)
-                    </Button>
-                  </div>
-                )}
-
-                {/* Send button on confirm step */}
-                {m.sendButton && i === messages.length - 1 && (
-                  <div className="mt-3">
-                    <Button
-                      className="w-full rounded-full shadow-glow"
-                      onClick={handleSubmit}
-                      disabled={sending}
-                    >
-                      {sending
-                        ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam...</>
-                        : "✉️ Pošlji povpraševanje"}
-                    </Button>
-                    <button
-                      className="w-full mt-2 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => { setStep("device"); setDiag(EMPTY); setPendingIssues([]); }}
-                    >
-                      Začni znova
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {step === "sending" && (
-              <div className="flex items-center gap-2 text-muted-foreground text-xs">
-                <Loader2 className="h-4 w-4 animate-spin" /> Pošiljam...
-              </div>
+              <div className="flex items-center gap-2 text-muted-foreground text-xs"><Loader2 className="h-4 w-4 animate-spin" /> Pošiljam...</div>
             )}
           </div>
 
-          {/* Input bar */}
+          {/* Input */}
           <div className="p-3 border-t flex gap-2 flex-shrink-0">
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSend()}
-              disabled={!isTextStep}
-              placeholder={
-                step === "name" ? "Vaše ime in priimek..." :
-                step === "phone" ? "Vaša telefonska številka..." :
-                step === "email" ? "Vaš e-mail naslov..." :
-                "Izberite možnost zgoraj..."
-              }
+              disabled={!isTextStep || step === "sending"}
+              placeholder={placeholder}
               className="flex-1 rounded-full bg-secondary px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-40"
             />
-            <Button
-              size="icon"
-              className="rounded-full h-10 w-10 flex-shrink-0"
-              onClick={handleSend}
-              disabled={!isTextStep || !input.trim()}
-            >
+            <Button size="icon" className="rounded-full h-10 w-10 flex-shrink-0" onClick={handleSend} disabled={!isTextStep || !input.trim() || step === "sending"}>
               <Send className="h-4 w-4" />
             </Button>
           </div>
@@ -424,102 +552,4 @@ export function ChatBubble() {
       )}
     </>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Build message list from current state
-// ---------------------------------------------------------------------------
-
-function buildMessages(step: Step, diag: DiagState, pendingIssues: string[]): Msg[] {
-  const msgs: Msg[] = [];
-
-  // Greeting
-  msgs.push(botMsg(
-    "👋 Pozdravljeni! Sem iRepair diagnostični pomočnik.\n\nPomagal vam bom oceniti stroške popravila in poslal povpraševanje v servis.\n\nKatero napravo imate?",
-    { options: DEVICES }
-  ));
-
-  if (!diag.device) return msgs;
-
-  msgs.push({ role: "user", text: diag.device });
-
-  // Model
-  msgs.push(botMsg(
-    `Kateri model ${diag.device} imate?`,
-    { options: DEVICE_MODELS[diag.device] ?? ["Drugo"] }
-  ));
-
-  if (!diag.model) return msgs;
-
-  msgs.push({ role: "user", text: diag.model });
-
-  // Issues
-  msgs.push(botMsg(
-    "Katere težave imate z napravo?\nLahko izberete več možnosti hkrati.",
-    { multiOptions: ISSUES }
-  ));
-
-  if (step === "issues") return msgs;
-
-  msgs.push({ role: "user", text: diag.issues.join(", ") });
-
-  // Urgency
-  msgs.push(botMsg(
-    "Kako urgentno potrebujete popravilo?",
-    { options: URGENCIES.map(u => u.l) }
-  ));
-
-  if (step === "urgency") return msgs;
-
-  const urgencyLabel = URGENCIES.find(u => u.v === diag.urgency)?.l ?? diag.urgency;
-  msgs.push({ role: "user", text: urgencyLabel });
-
-  // Price breakdown
-  const { lines, total } = calcCost(diag.model, diag.issues, diag.urgency);
-  const priceLines = lines.map(l => `  • ${l.label}: ${l.price}`).join("\n");
-  msgs.push(botMsg(
-    `💰 Ocena stroškov za ${diag.model}:\n\n${priceLines}\n${"─".repeat(28)}\n  Skupaj: ${total}\n\n(Diagnostika 20€ se vedno zaračuna in se odšteje od popravila.)\n\nZa pošiljanje povpraševanja potrebujem še vaše podatke.\n\nKako vam je ime?`
-  ));
-
-  if (step === "name") return msgs;
-
-  msgs.push({ role: "user", text: diag.name });
-  msgs.push(botMsg(`Hvala, ${diag.name}! Katera je vaša telefonska številka?`));
-
-  if (step === "phone") return msgs;
-
-  msgs.push({ role: "user", text: diag.phone });
-  msgs.push(botMsg("In vaš e-mail naslov?"));
-
-  if (step === "email") return msgs;
-
-  msgs.push({ role: "user", text: diag.email });
-
-  // Confirm
-  if (step === "confirm" || step === "sending") {
-    const { lines: cl, total: ct } = calcCost(diag.model, diag.issues, diag.urgency);
-    const summary = [
-      `📱 ${diag.device} — ${diag.model}`,
-      `🔧 ${diag.issues.join(", ")}`,
-      `⚡ ${urgencyLabel}`,
-      `💰 Ocena: ${ct}`,
-      ``,
-      `👤 ${diag.name}`,
-      `📞 ${diag.phone}`,
-      `📧 ${diag.email}`,
-    ].join("\n");
-    void cl;
-    msgs.push(botMsg(
-      `Odlično! Tukaj je povzetek:\n\n${summary}\n\nPotrdite pošiljanje povpraševanja na info@irepair.si — odgovorili vam bomo v 2 urah.`,
-      { sendButton: step === "confirm" }
-    ));
-  }
-
-  if (step === "done") {
-    msgs.push(botMsg(
-      `✅ Povpraševanje je bilo poslano!\n\nOdgovorili vam bomo v 2 urah na ${diag.email}.\n\nNas najdete na:\n📍 Koprska 94, Ljubljana\n📞 059 023 951\n🕐 Tor–Pet: 8:30–17:00`
-    ));
-  }
-
-  return msgs;
 }
