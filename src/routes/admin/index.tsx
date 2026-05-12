@@ -861,7 +861,6 @@ function LiveVisitors() {
 
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState<VisitorState>();
-      // Deduplicate: each presence key maps to an array — take the latest entry only
       const deduped = Object.values(state).map(entries => entries[entries.length - 1]).filter(Boolean);
       setVisitors(deduped);
     });
