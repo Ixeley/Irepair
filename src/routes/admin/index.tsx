@@ -302,11 +302,16 @@ function AdminPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("shop_products")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (!error && data) setProducts(data as ShopProduct[]);
+    try {
+      const { data, error } = await supabase
+        .from("shop_products")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) console.error("[Admin] Load error:", error.message);
+      if (data) setProducts(data as ShopProduct[]);
+    } catch (e) {
+      console.error("[Admin] Unexpected error:", e);
+    }
     setLoading(false);
   };
 

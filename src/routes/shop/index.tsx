@@ -311,15 +311,21 @@ function ShopPage() {
   const [inquiryProduct, setInquiryProduct] = useState<ShopProduct | null>(null);
 
   useEffect(() => {
-    supabase
-      .from("shop_products")
-      .select("*")
-      .eq("available", true)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) setProducts(data as ShopProduct[]);
-        setLoading(false);
-      });
+    const fetchProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("shop_products")
+          .select("*")
+          .eq("available", true)
+          .order("created_at", { ascending: false });
+        if (error) console.error("[Shop] Failed to load products:", error.message);
+        if (data) setProducts(data as ShopProduct[]);
+      } catch (e) {
+        console.error("[Shop] Unexpected error:", e);
+      }
+      setLoading(false);
+    };
+    fetchProducts();
   }, []);
 
   const filtered = category === "vse" ? products : products.filter(p => p.category === category);
@@ -335,7 +341,7 @@ function ShopPage() {
           </a>
           <div className="flex items-center gap-2">
             <Tag className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Shop</span>
+            <span className="font-semibold">Izdelki</span>
           </div>
           <a href="tel:059023951" className="text-sm text-muted-foreground hover:text-foreground hidden sm:block">059 023 951</a>
         </div>
@@ -344,11 +350,11 @@ function ShopPage() {
       {/* Hero */}
       <section className="gradient-hero py-16 px-4 text-center">
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-4">
-          Odkup & Prodaja<br />
           <span className="bg-gradient-to-r from-primary to-[oklch(0.5_0.2_250)] bg-clip-text text-transparent">
-            Apple naprav
+            Izdelki
           </span>
         </h1>
+        <p className="text-2xl font-semibold text-foreground mb-3">Odkup & Prodaja Apple naprav</p>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto mb-8">
           Rabljene Apple naprave po dostopnih cenah. Prevzem osebno v poslovalnici.<br />
           Prodajte nam vašo napravo — odkupimo vse modele.
