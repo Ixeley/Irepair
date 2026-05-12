@@ -160,44 +160,75 @@ function isNo(t: string): boolean  { return /^(ne|no|nope|nič|nic)/i.test(t.tri
 // ---------------------------------------------------------------------------
 
 function sl(t: string): string {
-  return t.toLowerCase().replace(/š/g,"s").replace(/č/g,"c").replace(/ž/g,"z").replace(/đ/g,"d");
+  return t.toLowerCase()
+    .replace(/š/g,"s").replace(/č/g,"c").replace(/ž/g,"z").replace(/đ/g,"d")
+    .replace(/š/g,"s");
+}
+
+// Keywords that suggest the user wants a repair (not asking a general question)
+function isRepairIntent(t: string): boolean {
+  return /iphone|ipad|macbook|imac|samsung|huawei|xiaomi|motorola|telefon|tablica|laptop|racunalnik|zaslon|ekran|baterij|polni|vklopi|voda|tekocin|pocasen|tipkovnic|popravi|pokvarjen|kvaren|razbit|razpok|ne dela|strgan|crn zaslon|razbit/.test(t);
+}
+
+// Keywords that suggest a question
+function looksLikeQuestion(t: string): boolean {
+  return /\bali\b|\bkje\b|\bkdaj\b|\bkako\b|\bkakn|\bkoliko\b|\bkaj\b|\bimate\b|\bnudite\b|\bponujate\b|\bste\b|\bimate\b|\bvasa\b|\bvase\b|\bvasen\b/.test(t);
 }
 
 function matchFaq(raw: string): string | null {
   const t = sl(raw);
 
+  // Contact / phone number — many ways to ask
+  if (/\btel\b|telefonsk|tel\.?\s*stev|\bstev\b|kontakt|klicete|poklic|dosezem|napisete|email|e.?mail|napisem|naslov.*kontak/.test(t))
+    return "📞 Pokličite nas: 059 023 951\n📧 info@irepair.si\n\n🕐 Tor–Pet: 8:30–17:00\n📍 Koprska 94, Ljubljana";
+
+  // Warranty
   if (/garanc/.test(t))
     return "Da, na vsa popravila dajemo 3-mesečno garancijo. 🛡️\n\nČe se po popravilu pojavi ista težava, jo odpravimo brezplačno.";
 
+  // Location
   if (/\bkje\b|naslov|poslovalnic|lokacij|priti|najdem/.test(t))
     return "📍 Nahajamo se na:\nKoprska 94, 1000 Ljubljana\n\n🕐 Tor–Pet: 8:30–17:00\nPonedeljek smo zaprti.";
 
-  if (/kdaj|delovni.?cas|ura|urnik|\boprt\b|odprt/.test(t))
+  // Working hours
+  if (/kdaj|delovni.?cas|ura|urnik|odprt|zaprt/.test(t))
     return "🕐 Delovni čas:\nTor–Pet: 8:30–17:00\n\nPonedeljek smo zaprti.\n\n📍 Koprska 94, Ljubljana";
 
-  if (/koliko stan|cena|cenik|koliko kosta|strosek|koliko znas/.test(t))
+  // Pricing
+  if (/koliko.?stan|cena|cenik|koliko.?kosta|strosek|koliko.?znas|popravilo.?kosta/.test(t))
     return "💰 Orientacijske cene (odvisno od modela):\n\n• Zamenjava zaslona: od 89€\n• Zamenjava baterije: od 59€\n• Vodna škoda: od 79€\n• Diagnostika: 20€ (odšteje se od popravila)\n\nNatančno ceno izračunam, če mi poveste model naprave.";
 
+  // Diagnostics
   if (/diagnostika|diagnoz/.test(t))
     return "🔍 Diagnostika vidnih napak je brezplačna.\n\nČe je treba odpreti napravo, zaračunamo 20€ — ta znesek se odšteje od končnega popravila.";
 
-  if (/kako dolgo|koliko casa|cas popravil|rok|trajanje|kdaj bo/.test(t))
+  // Duration / turnaround
+  if (/kako.?dolgo|koliko.?casa|cas.?popravil|rok|trajanje|kdaj.?bo.?gotov|kdaj.?bom/.test(t))
     return "⏱️ Okvirni roki:\n\n• Standardno: 2–5 dni\n• Hitra obdelava: 1–2 dni\n• Urgentno 24h: možno (+50€ doplačilo)";
 
-  if (/nadomestn|posoditi|zacasn.*telefon/.test(t))
+  // Replacement / loaner phone
+  if (/nadomestn|posoditi|zacasn.*(telefon|naprav)|izposoj/.test(t))
     return "📱 Med popravilom vam zagotovimo nadomestni telefon.\n\nZa rezervacijo nas pokličite: 059 023 951.";
 
-  if (/kurirsk|posta|dostava|po post/.test(t))
+  // Courier / delivery
+  if (/kurirsk|posta|dostava|po.?post|poslat/.test(t))
     return "Naprave sprejemamo samo osebno v poslovalnici — kurirske dostave ne nudimo.\n\n📍 Koprska 94, Ljubljana\nTor–Pet: 8:30–17:00";
 
-  if (/podatk|backup|varnost/.test(t))
-    return "🔒 Vaši podatki so varni — naprav ne resetiramo brez vašega dovoljenja.\n\nPriporočamo, da naredite varnostno kopijo pred oddajo.";
+  // Data / privacy
+  if (/podatk|backup|rezervn.?kopij|varnost.*podatk/.test(t))
+    return "🔒 Vaši podatki so varni — naprav ne resetiramo brez vašega dovoljenja.\n\nPriporočamo varnostno kopijo pred oddajo.";
 
-  if (/placilo|placam|gotovina|kartic|bancn/.test(t))
+  // Payment
+  if (/placilo|placam|gotovina|kartic|bancn|kako.?plac/.test(t))
     return "💳 Plačate lahko z gotovino ali bančno kartico.\n\nRačun prejmete po opravljenem popravilu.";
 
-  if (/kontakt|telefon.*stev|klicete|poklic/.test(t))
-    return "📞 Pokličite nas: 059 023 951\n📧 info@irepair.si\n\n🕐 Tor–Pet: 8:30–17:00";
+  // Services offered
+  if (/kaj.?popravlj|katere.?storit|kaj.?nudite|kaj.?ponujate|kaj.*(delate|pocnete)/.test(t))
+    return "🔧 Specializiramo se za:\n\n• Popravilo zaslonov (iPhone, iPad, MacBook)\n• Zamenjava baterij\n• Matične plošče — rebalansiranje & mikro-restavracija\n• Reševanje podatkov\n• Vodna škoda\n• Čiščenje, SSD nadgradnja (Mac)\n\nDelamo na vseh modelih Apple naprav.";
+
+  // Generic question fallback — if it looks like a question and not a repair request
+  if (looksLikeQuestion(t) && !isRepairIntent(t))
+    return "Za podrobnejše informacije nas pokličite na 059 023 951 ali pišite na info@irepair.si. 😊\n\nAli vam pomagam z oceno stroška popravila?";
 
   return null;
 }
