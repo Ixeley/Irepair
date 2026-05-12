@@ -156,6 +156,53 @@ function isYes(t: string): boolean { return /^(da|ja|yes|ok|seveda|vsekakor)/i.t
 function isNo(t: string): boolean  { return /^(ne|no|nope|nič|nic)/i.test(t.trim()); }
 
 // ---------------------------------------------------------------------------
+// FAQ matching — returns answer string or null
+// ---------------------------------------------------------------------------
+
+function sl(t: string): string {
+  return t.toLowerCase().replace(/š/g,"s").replace(/č/g,"c").replace(/ž/g,"z").replace(/đ/g,"d");
+}
+
+function matchFaq(raw: string): string | null {
+  const t = sl(raw);
+
+  if (/garanc/.test(t))
+    return "Da, na vsa popravila dajemo 3-mesečno garancijo. 🛡️\n\nČe se po popravilu pojavi ista težava, jo odpravimo brezplačno.";
+
+  if (/\bkje\b|naslov|poslovalnic|lokacij|priti|najdem/.test(t))
+    return "📍 Nahajamo se na:\nKoprska 94, 1000 Ljubljana\n\n🕐 Tor–Pet: 8:30–17:00\nPonedeljek smo zaprti.";
+
+  if (/kdaj|delovni.?cas|ura|urnik|\boprt\b|odprt/.test(t))
+    return "🕐 Delovni čas:\nTor–Pet: 8:30–17:00\n\nPonedeljek smo zaprti.\n\n📍 Koprska 94, Ljubljana";
+
+  if (/koliko stan|cena|cenik|koliko kosta|strosek|koliko znas/.test(t))
+    return "💰 Orientacijske cene (odvisno od modela):\n\n• Zamenjava zaslona: od 89€\n• Zamenjava baterije: od 59€\n• Vodna škoda: od 79€\n• Diagnostika: 20€ (odšteje se od popravila)\n\nNatančno ceno izračunam, če mi poveste model naprave.";
+
+  if (/diagnostika|diagnoz/.test(t))
+    return "🔍 Diagnostika vidnih napak je brezplačna.\n\nČe je treba odpreti napravo, zaračunamo 20€ — ta znesek se odšteje od končnega popravila.";
+
+  if (/kako dolgo|koliko casa|cas popravil|rok|trajanje|kdaj bo/.test(t))
+    return "⏱️ Okvirni roki:\n\n• Standardno: 2–5 dni\n• Hitra obdelava: 1–2 dni\n• Urgentno 24h: možno (+50€ doplačilo)";
+
+  if (/nadomestn|posoditi|zacasn.*telefon/.test(t))
+    return "📱 Med popravilom vam zagotovimo nadomestni telefon.\n\nZa rezervacijo nas pokličite: 059 023 951.";
+
+  if (/kurirsk|posta|dostava|po post/.test(t))
+    return "Naprave sprejemamo samo osebno v poslovalnici — kurirske dostave ne nudimo.\n\n📍 Koprska 94, Ljubljana\nTor–Pet: 8:30–17:00";
+
+  if (/podatk|backup|varnost/.test(t))
+    return "🔒 Vaši podatki so varni — naprav ne resetiramo brez vašega dovoljenja.\n\nPriporočamo, da naredite varnostno kopijo pred oddajo.";
+
+  if (/placilo|placam|gotovina|kartic|bancn/.test(t))
+    return "💳 Plačate lahko z gotovino ali bančno kartico.\n\nRačun prejmete po opravljenem popravilu.";
+
+  if (/kontakt|telefon.*stev|klicete|poklic/.test(t))
+    return "📞 Pokličite nas: 059 023 951\n📧 info@irepair.si\n\n🕐 Tor–Pet: 8:30–17:00";
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Message types
 // ---------------------------------------------------------------------------
 
@@ -239,9 +286,22 @@ export function ChatBubble() {
   const handleAction = (userText: string, value?: string) => {
     const val = value ?? userText;
 
-    // Idle → first user message
+    // Idle → first user message (or repair-start button)
     if (step === "idle") {
-      push({ role: "user", text: userText });
+      if (val !== "__start_repair__") {
+        push({ role: "user", text: userText });
+
+        // Answer FAQ questions without entering the diagnostic flow
+        const faqAnswer = matchFaq(userText);
+        if (faqAnswer) {
+          push({ role: "bot", text: faqAnswer, buttons: [{ label: "Naroči popravilo", value: "__start_repair__" }] });
+          return;
+        }
+      } else {
+        push({ role: "user", text: "Naroči popravilo" });
+      }
+
+      // Start diagnostic flow
       const dd = detectDeviceType();
       const dm = dd ? detectModel(dd) : null;
       const newDiag = { ...EMPTY_DIAG, detectedDevice: dd, detectedModel: dm };
