@@ -1,15 +1,42 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Zap, Award } from "lucide-react";
 import heroImg from "@/assets/hero-devices.jpg";
 
+function checkIsOpen(): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Ljubljana",
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const day = parts.find((p) => p.type === "weekday")?.value ?? "";
+  const hour = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0");
+
+  if (!["Tue", "Wed", "Thu", "Fri"].includes(day)) return false;
+  const total = hour * 60 + minute;
+  return total >= 8 * 60 + 30 && total < 17 * 60;
+}
+
 export function Hero() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    setIsOpen(checkIsOpen());
+    const interval = setInterval(() => setIsOpen(checkIsOpen()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <section className="relative overflow-hidden gradient-hero">
       <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 lg:grid-cols-2 lg:py-24">
         <div className="animate-fade-up">
           <div className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            Trenutno odprto · Diagnostika vidnih napak brezplačna
+            <span className={`h-2 w-2 rounded-full ${isOpen ? "bg-success animate-pulse" : "bg-destructive"}`} />
+            {isOpen ? "Trenutno odprto" : "Trenutno zaprto"} · Diagnostika vidnih napak brezplačna
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl">
             Vaša Apple naprava<br />
