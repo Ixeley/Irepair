@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, ArrowRight, ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
 // Static data
@@ -278,26 +277,34 @@ export function BookingForm() {
 
   const submit = async () => {
     setSubmitting(true);
-    const descParts = [model ? `Model: ${model}.` : "", contact.description].filter(Boolean);
-    const { error } = await supabase.from("contact_submissions").insert({
-      device,
-      issues,
-      urgency,
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
-      address: null,
-      description: descParts.join(" ").trim() || null,
-      courier: false,
-      replacement: contact.replacement,
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error("Napaka pri pošiljanju. Poskusite znova ali pokličite 059 023 951.");
-      return;
+    try {
+      const res = await fetch("/.netlify/functions/send-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          device,
+          model,
+          issues,
+          urgency,
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+          description: contact.description,
+          replacement: contact.replacement,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error ?? "Napaka pri pošiljanju. Pokličite 059 023 951.");
+        return;
+      }
+      setDone(true);
+      toast.success("Povpraševanje poslano! Preverite e-pošto.");
+    } catch {
+      toast.error("Napaka pri pošiljanju. Pokličite nas na 059 023 951.");
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
-    toast.success("Povpraševanje poslano!");
   };
 
   // ---------------------------------------------------------------------------
