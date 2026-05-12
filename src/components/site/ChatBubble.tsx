@@ -667,7 +667,7 @@ export function ChatBubble() {
     const { total } = calcCost(prices, diag.model, diag.issues, diag.urgency, diag.extra);
     const description = [diag.extra ? `Dodatna storitev: ${diag.extra}.` : "", `Ocena: ${total}. Povpraševanje oddano prek klepeta.`].filter(Boolean).join(" ");
     try {
-      const res = await fetch("/api/send-booking", {
+      const res = await fetch("/.netlify/functions/send-booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ device: diag.device, model: diag.model, issues: diag.issues, urgency: diag.urgency, name: diag.name, phone: diag.phone, email: diag.email, description, replacement: false, totalCost: total }),
