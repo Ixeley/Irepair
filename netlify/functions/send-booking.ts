@@ -19,6 +19,7 @@ function buildBusinessEmail(data: {
   phone: string;
   description: string;
   replacement: boolean;
+  totalCost?: string;
 }): string {
   const urgencyLabel = URGENCY_LABELS[data.urgency] ?? data.urgency;
   const issuesList = data.issues.map((i) => `<li>${i}</li>`).join("");
@@ -61,6 +62,7 @@ function buildBusinessEmail(data: {
                   <span style="color:#1d1d1f;font-weight:600;font-size:15px;">${urgencyLabel}</span>
                 </td>
               </tr>
+              ${data.totalCost ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#6e6e73;font-size:13px;display:block;">Ocena stroškov</span><span style="color:#1d4ed8;font-weight:700;font-size:16px;">${data.totalCost}</span></td></tr>` : ""}
               ${data.replacement ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#6e6e73;font-size:13px;display:block;">Dodatno</span><span style="color:#1d1d1f;font-size:15px;">Nadomestni telefon</span></td></tr>` : ""}
               ${data.description ? `<tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;"><span style="color:#6e6e73;font-size:13px;display:block;">Opis težave</span><span style="color:#1d1d1f;font-size:15px;">${data.description}</span></td></tr>` : ""}
             </table>
@@ -168,6 +170,7 @@ export const handler: Handler = async (event) => {
     phone: string;
     description: string;
     replacement: boolean;
+    totalCost?: string;
   };
 
   try {
