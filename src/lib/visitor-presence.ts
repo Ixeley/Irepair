@@ -70,7 +70,6 @@ export function initVisitorTracking(page: string): () => void {
 
   _channel = supabase.channel(VISITOR_CHANNEL);
 
-  // Respond to admin "ping" with current state
   _channel.on("broadcast", { event: "request_state" }, () => {
     send("visitor_update");
   });
