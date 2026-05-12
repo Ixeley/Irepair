@@ -3,11 +3,12 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: "#storitve", label: "Storitve" },
-  { href: "#proces", label: "Proces" },
-  { href: "#cenik", label: "Cenik" },
-  { href: "#faq", label: "FAQ" },
-  { href: "#kontakt", label: "Kontakt" },
+  { href: "#storitve", label: "Storitve",  external: false },
+  { href: "#proces",   label: "Proces",   external: false },
+  { href: "#cenik",    label: "Cenik",    external: false },
+  { href: "#faq",      label: "FAQ",      external: false },
+  { href: "#kontakt",  label: "Kontakt",  external: false },
+  { href: "/shop",     label: "🛒 Shop",  external: true  },
 ];
 
 export function Nav() {
@@ -27,7 +28,9 @@ export function Nav() {
         </a>
         <nav className="hidden md:flex items-center gap-8">
           {links.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <a key={l.href} href={l.href}
+              {...(l.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              className={`text-sm font-medium transition-colors ${l.external ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-foreground"}`}>
               {l.label}
             </a>
           ))}
@@ -44,7 +47,9 @@ export function Nav() {
       {open && (
         <div className="md:hidden border-t bg-background px-4 py-4 space-y-3">
           {links.map((l) => (
-            <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="block text-sm font-medium">
+            <a key={l.href} href={l.href}
+              {...(l.external ? { target: "_blank", rel: "noopener noreferrer" } : { onClick: () => setOpen(false) })}
+              className="block text-sm font-medium">
               {l.label}
             </a>
           ))}
