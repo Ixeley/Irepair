@@ -8,7 +8,7 @@ const links = [
   { href: "#cenik",    label: "Cenik",    external: false },
   { href: "#faq",      label: "FAQ",      external: false },
   { href: "#kontakt",  label: "Kontakt",  external: false },
-  { href: "/shop",     label: "🛒 Shop",  external: true  },
+  { href: "/shop",     label: "Izdelki",  external: true  },
 ];
 
 export function Nav() {

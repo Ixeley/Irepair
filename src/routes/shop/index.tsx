@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ShoppingBag, ArrowLeft, Loader2, Tag, ChevronRight, X } from "lucide-react";
+import { ShoppingBag, ArrowLeft, Loader2, Tag, X, MapPin, Clock, Shield, Phone, MapPinned, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/shop/")({
   component: ShopPage,
@@ -131,7 +131,7 @@ function PurchaseModal({ product, onClose }: { product: ShopProduct; onClose: ()
 
           {done ? (
             <div className="text-center py-8">
-              <div className="text-5xl mb-4">✅</div>
+              <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto mb-4" />
               <h3 className="font-semibold text-lg mb-2">Povpraševanje poslano!</h3>
               <p className="text-sm text-muted-foreground mb-2">Odgovorili vam bomo v 2 urah.</p>
               <p className="text-sm text-muted-foreground">Prevzem: <strong>Koprska 94, Ljubljana</strong></p>
@@ -213,10 +213,13 @@ function SellSection() {
 
   if (done) return (
     <div className="text-center py-16">
-      <div className="text-6xl mb-4">💰</div>
+      <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
       <h3 className="text-2xl font-bold mb-2">Povpraševanje poslano!</h3>
       <p className="text-muted-foreground mb-1">Ocenili bomo vašo napravo in vam odgovorili v 2 urah.</p>
-      <p className="text-muted-foreground">📞 059 023 951 · 📍 Koprska 94, Ljubljana</p>
+      <p className="text-muted-foreground flex items-center justify-center gap-3 mt-2">
+        <span className="flex items-center gap-1"><Phone className="h-4 w-4" /> 059 023 951</span>
+        <span className="flex items-center gap-1"><MapPinned className="h-4 w-4" /> Koprska 94, Ljubljana</span>
+      </p>
       <Button className="mt-6 rounded-full" onClick={() => setDone(false)}>Novo povpraševanje</Button>
     </div>
   );
@@ -291,7 +294,7 @@ function SellSection() {
         </div>
 
         <Button type="submit" size="lg" className="w-full rounded-full shadow-glow" disabled={loading}>
-          {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam...</> : "💰 Pošlji povpraševanje za odkup"}
+          {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pošiljam...</> : "Pošlji povpraševanje za odkup"}
         </Button>
         <p className="text-center text-xs text-muted-foreground">Odgovorimo v 2 urah · Prevzem/oddaja osebno v poslovalnici</p>
       </form>
@@ -363,8 +366,8 @@ function ShopPage() {
         {/* Tabs */}
         <div className="inline-flex rounded-full bg-card shadow-soft p-1.5 gap-1">
           {[
-            { v: "buy",  label: "🛒 Kupite napravo" },
-            { v: "sell", label: "💰 Prodajte nam" },
+            { v: "buy",  label: "Kupite napravo" },
+            { v: "sell", label: "Prodajte nam" },
           ].map(t => (
             <button key={t.v}
               onClick={() => setTab(t.v as "buy" | "sell")}
@@ -410,12 +413,12 @@ function ShopPage() {
             <div className="mt-12 rounded-2xl bg-card border border-border p-6 text-sm text-muted-foreground">
               <div className="grid sm:grid-cols-3 gap-4 text-center">
                 {[
-                  { icon: "📍", title: "Prevzem osebno", desc: "Koprska 94, Ljubljana" },
-                  { icon: "🕐", title: "Delovni čas",   desc: "Tor–Pet: 8:30–17:00" },
-                  { icon: "🛡️", title: "Garancija",      desc: "3 mesece na vse naprave" },
+                  { icon: <MapPin className="h-6 w-6 text-primary mx-auto" />, title: "Prevzem osebno", desc: "Koprska 94, Ljubljana" },
+                  { icon: <Clock className="h-6 w-6 text-primary mx-auto" />,  title: "Delovni čas",   desc: "Tor–Pet: 8:30–17:00" },
+                  { icon: <Shield className="h-6 w-6 text-primary mx-auto" />, title: "Garancija",      desc: "3 mesece na vse naprave" },
                 ].map(b => (
                   <div key={b.title}>
-                    <div className="text-2xl mb-1">{b.icon}</div>
+                    <div className="mb-2">{b.icon}</div>
                     <div className="font-medium text-foreground">{b.title}</div>
                     <div>{b.desc}</div>
                   </div>
@@ -435,9 +438,9 @@ function ShopPage() {
                 Izpolnite obrazec, ocenili bomo in vam odgovorili v 2 urah.
               </p>
               <div className="flex flex-wrap justify-center gap-4 mt-6 text-sm">
-                {["Vse modele", "Vsako stanje", "Hitra ocena", "Gotovina/bančni nakazilo"].map(f => (
+                {["Vse modele", "Vsako stanje", "Hitra ocena", "Gotovina / bančni nakazilo"].map(f => (
                   <span key={f} className="flex items-center gap-1.5 text-muted-foreground">
-                    <ChevronRight className="h-4 w-4 text-primary" />{f}
+                    <CheckCircle2 className="h-4 w-4 text-primary" />{f}
                   </span>
                 ))}
               </div>
