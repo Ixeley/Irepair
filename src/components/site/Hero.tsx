@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, Zap, Award } from "lucide-react";
+import { ShieldCheck, Zap, Award, ChevronLeft, ChevronRight } from "lucide-react";
 import heroImg from "@/assets/hero-devices.jpg";
 
 function checkIsOpen(): boolean {
@@ -19,6 +19,109 @@ function checkIsOpen(): boolean {
   if (!["Tue", "Wed", "Thu", "Fri"].includes(day)) return false;
   const total = hour * 60 + minute;
   return total >= 8 * 60 + 30 && total < 17 * 60;
+}
+
+const SLIDES = [
+  { type: "image" as const },
+  {
+    type: "card" as const,
+    gradient: "from-blue-600 to-blue-800",
+    emoji: "📱",
+    title: "iPhone servis",
+    bullets: ["Zamenjava zaslona — od 89€", "Zamenjava baterije — od 59€", "Vodna škoda — od 79€", "Matična plošča — od 149€"],
+  },
+  {
+    type: "card" as const,
+    gradient: "from-slate-700 to-slate-900",
+    emoji: "💻",
+    title: "MacBook servis",
+    bullets: ["Popravilo matične plošče", "Zamenjava SSD — od 79€", "Čiščenje & optimizacija", "Reševanje podatkov"],
+  },
+  {
+    type: "card" as const,
+    gradient: "from-emerald-600 to-teal-700",
+    emoji: "🛡️",
+    title: "Naša garancija",
+    bullets: ["3-mesečna garancija na popravilo", "Diagnostika vidnih napak brezplačna", "20+ let izkušenj", "10.000+ popravljenih naprav"],
+  },
+];
+
+function HeroSlideshow() {
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const next = useCallback(() => setCurrent(c => (c + 1) % SLIDES.length), []);
+  const prev = useCallback(() => setCurrent(c => (c - 1 + SLIDES.length) % SLIDES.length), []);
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setTimeout(next, 4500);
+    return () => clearTimeout(t);
+  }, [current, paused, next]);
+
+  return (
+    <div
+      className="relative rounded-3xl overflow-hidden shadow-card w-full aspect-[4/3] lg:aspect-auto lg:h-[420px]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {SLIDES.map((slide, i) => (
+        <div
+          key={i}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+        >
+          {slide.type === "image" ? (
+            <img
+              src={heroImg}
+              alt="Apple naprave — iPhone, MacBook, iPad"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-br ${slide.gradient} flex flex-col items-center justify-center p-8 text-white`}>
+              <div className="text-5xl mb-4">{slide.emoji}</div>
+              <h3 className="text-2xl font-bold mb-5">{slide.title}</h3>
+              <ul className="space-y-2 text-sm text-white/90">
+                {slide.bullets.map(b => (
+                  <li key={b} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/70 flex-shrink-0" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Arrows */}
+      <button
+        onClick={prev}
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors"
+        aria-label="Nazaj"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors"
+        aria-label="Naprej"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+
+      {/* Dots */}
+      <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-1.5">
+        {SLIDES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrent(i)}
+            className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function Hero() {
@@ -70,15 +173,8 @@ export function Hero() {
             ))}
           </div>
         </div>
-        <div className="relative animate-float">
-          <div className="absolute inset-0 -z-10 blur-3xl opacity-40 bg-gradient-to-br from-primary to-transparent rounded-full" />
-          <img
-            src={heroImg}
-            alt="Apple naprave - iPhone, MacBook, iPad"
-            width={1600}
-            height={1024}
-            className="rounded-3xl shadow-card w-full h-auto"
-          />
+        <div className="animate-fade-up" style={{ animationDelay: "0.15s" }}>
+          <HeroSlideshow />
         </div>
       </div>
     </section>
