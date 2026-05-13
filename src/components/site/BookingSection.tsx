@@ -6,7 +6,7 @@ export function BookingSection() {
       <div className="mx-auto max-w-3xl px-4">
         <div className="text-center mb-10">
           <p className="text-sm font-semibold text-primary uppercase tracking-wider">Naročilo</p>
-          <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Naročite popravilo v 2 minutah</h2>
+          <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Naročite povpraševanje v 2 minutah</h2>
           <p className="mt-3 text-muted-foreground">Odgovorimo v 2 urah · Sprejem osebno v poslovalnici</p>
         </div>
         <BookingForm />

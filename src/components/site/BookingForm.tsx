@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { updateVisitorState } from "@/lib/visitor-presence";
+import { fetchServicePrices, DEFAULT_PRICES, type IssuePrices, type Tier } from "@/lib/service-prices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,18 +74,6 @@ const DEVICE_MODELS: Record<string, string[]> = {
 // Pricing
 // ---------------------------------------------------------------------------
 
-type Tier =
-  | "pro_max"
-  | "pro"
-  | "standard"
-  | "mini_se"
-  | "macbook_new"
-  | "macbook_intel"
-  | "ipad_pro"
-  | "ipad_std"
-  | "watch"
-  | "other";
-
 const MODEL_TIER: Record<string, Tier> = {
   "iPhone 16 Pro Max": "pro_max", "iPhone 15 Pro Max": "pro_max", "iPhone 14 Pro Max": "pro_max",
   "iPhone 13 Pro Max": "pro_max", "iPhone 12 Pro Max": "pro_max",
@@ -111,60 +100,10 @@ const MODEL_TIER: Record<string, Tier> = {
   "Apple Watch Series 8": "watch", "Apple Watch SE (2. gen)": "watch", "Apple Watch Series 7": "watch",
 };
 
-const ISSUE_PRICES: Record<string, Partial<Record<Tier, string>>> = {
-  "Poškodovan zaslon": {
-    pro_max: "169–189€", pro: "139–159€", standard: "109–129€", mini_se: "89–99€",
-    ipad_pro: "179–229€", ipad_std: "119–149€",
-    macbook_new: "299–399€", macbook_intel: "199–279€",
-    watch: "99–149€",
-  },
-  "Ne polni / Baterija": {
-    pro_max: "89€", pro: "79€", standard: "69€", mini_se: "59€",
-    ipad_pro: "99€", ipad_std: "79€",
-    macbook_new: "129€", macbook_intel: "99€",
-    watch: "79€",
-  },
-  "Ne vključi se": {
-    pro_max: "od 149€", pro: "od 149€", standard: "od 129€", mini_se: "od 99€",
-    ipad_pro: "od 149€", ipad_std: "od 119€",
-    macbook_new: "od 199€", macbook_intel: "od 149€",
-    watch: "od 99€",
-  },
-  "Stik s tekočino": {
-    pro_max: "99–149€", pro: "89–129€", standard: "79–109€", mini_se: "79€",
-    ipad_pro: "119–149€", ipad_std: "99–119€",
-    macbook_new: "129–199€", macbook_intel: "99–149€",
-    watch: "99€",
-  },
-  "Počasen": {
-    pro_max: "od 79€", pro: "od 79€", standard: "od 69€", mini_se: "od 59€",
-    ipad_pro: "od 79€", ipad_std: "od 69€",
-    macbook_new: "od 99€", macbook_intel: "od 79€",
-    watch: "od 69€",
-  },
-  "Izguba podatkov": {
-    pro_max: "od 119€", pro: "od 109€", standard: "od 99€", mini_se: "od 99€",
-    ipad_pro: "od 119€", ipad_std: "od 99€",
-    macbook_new: "od 149€", macbook_intel: "od 119€",
-    watch: "od 99€",
-  },
-  "Tipkovnica ne deluje": {
-    macbook_new: "149–249€", macbook_intel: "99–179€",
-    pro_max: "od 99€", pro: "od 99€", standard: "od 79€", mini_se: "od 79€",
-  },
-  "Drugo": {
-    pro_max: "Po diagnostiki", pro: "Po diagnostiki",
-    standard: "Po diagnostiki", mini_se: "Po diagnostiki",
-    ipad_pro: "Po diagnostiki", ipad_std: "Po diagnostiki",
-    macbook_new: "Po diagnostiki", macbook_intel: "Po diagnostiki",
-    watch: "Po diagnostiki",
-  },
-};
-
-function getPrice(model: string, issue: string): string {
-  const tier = MODEL_TIER[model];
+function getPrice(prices: IssuePrices, model: string, issue: string): string {
+  const tier = MODEL_TIER[model] as Tier | undefined;
   if (!tier) return "Po diagnostiki";
-  return ISSUE_PRICES[issue]?.[tier] ?? "Po diagnostiki";
+  return prices[issue]?.[tier] ?? "Po diagnostiki";
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +164,7 @@ function orderedModels(device: string, detectedModel: string | null): string[] {
 // ---------------------------------------------------------------------------
 
 export function BookingForm() {
+  const [prices, setPrices] = useState<IssuePrices>(DEFAULT_PRICES);
   const [step, setStep] = useState(1);
   const [device, setDevice] = useState("");
   const [model, setModel] = useState("");
@@ -239,6 +179,8 @@ export function BookingForm() {
   // Detected values (set once on mount)
   const [detectedDevice, setDetectedDevice] = useState<string | null>(null);
   const [detectedModel, setDetectedModel] = useState<string | null>(null);
+
+  useEffect(() => { fetchServicePrices().then(setPrices); }, []);
 
   useEffect(() => {
     const dd = detectDeviceType();
@@ -352,7 +294,7 @@ export function BookingForm() {
   // Price summary helpers (used in step 6)
   // ---------------------------------------------------------------------------
 
-  const issuePrices = issues.map((iss) => ({ issue: iss, price: getPrice(model, iss) }));
+  const issuePrices = issues.map((iss) => ({ issue: iss, price: getPrice(prices, model, iss) }));
   const urgencyObj = URGENCIES.find((u) => u.v === urgency);
 
   // ---------------------------------------------------------------------------
@@ -454,7 +396,7 @@ export function BookingForm() {
           <p className="text-sm text-muted-foreground">Izberete lahko več možnosti.</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {ISSUES.map((i) => {
-              const price = getPrice(model, i);
+              const price = getPrice(prices, model, i);
               return (
                 <label
                   key={i}
