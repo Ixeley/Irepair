@@ -77,23 +77,27 @@ ${data.description ? `<tr><td style="padding:8px 0;border-bottom:1px solid #f0f0
 </td></tr>
 </table></td></tr></table></body></html>`;
 
+  const FROM_SENDER = process.env.RESEND_FROM ?? "iRepair Odkup <narocila@irepair.si>";
   try {
-    await resend.emails.send({
-      from: "iRepair Odkup <narocila@irepair.si>",
+    const biz = await resend.emails.send({
+      from: FROM_SENDER,
       to: [BUSINESS_EMAIL],
       replyTo: data.email,
       subject: `💰 Odkup: ${data.deviceType}${data.model ? ` ${data.model}` : ""} — ${data.name}`,
       html: businessHtml,
     });
-    await resend.emails.send({
-      from: "iRepair Odkup <narocila@irepair.si>",
+    if (biz.error) throw new Error(biz.error.message);
+    const conf = await resend.emails.send({
+      from: FROM_SENDER,
       to: [data.email],
       subject: "iRepair — Vaše povpraševanje za odkup smo prejeli 💰",
       html: confirmHtml,
     });
+    if (conf.error) throw new Error(conf.error.message);
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
   } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: "Napaka pri pošiljanju." }) };
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Resend error:", msg);
+    return { statusCode: 500, body: JSON.stringify({ error: `Napaka pri pošiljanju: ${msg}` }) };
   }
 };
