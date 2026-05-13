@@ -835,9 +835,8 @@ export function ChatBubble() {
           style={{
             bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
             right: "1rem",
-            left: "1rem",
+            width: "calc(100% - 2rem)",
             maxWidth: "24rem",
-            marginLeft: "auto",
             maxHeight: "calc(100dvh - 5rem)",
           }}
         >
