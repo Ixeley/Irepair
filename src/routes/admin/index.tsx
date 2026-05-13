@@ -840,6 +840,87 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
 }
 
 // ---------------------------------------------------------------------------
+// Add service modal
+// ---------------------------------------------------------------------------
+
+function AddServiceModal({ existingKeys, onAdd, onClose }: {
+  existingKeys: string[];
+  onAdd: (name: string, tierPrices: Partial<Record<string, string>>) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [tierPrices, setTierPrices] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
+
+  const setTier = (key: string, val: string) =>
+    setTierPrices(prev => ({ ...prev, [key]: val }));
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) { setError("Vnesite ime storitve."); return; }
+    if (existingKeys.includes(trimmed)) { setError("Storitev s tem imenom že obstaja."); return; }
+    onAdd(trimmed, tierPrices);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card rounded-2xl border border-border shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h3 className="font-semibold text-base">Nova storitev</h3>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-secondary transition-colors text-muted-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Service name */}
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Ime storitve *</label>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => { setName(e.target.value); setError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleSave()}
+              placeholder="npr. Zamenjava kamere"
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+            />
+            {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+          </div>
+
+          {/* Prices per tier */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Cene po napravah <span className="text-xs text-muted-foreground font-normal">(pusti prazno = "Po diagnostiki")</span>
+            </label>
+            <div className="space-y-2">
+              {TIERS.map(t => (
+                <div key={t.key} className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground w-36 flex-shrink-0">{t.label}</span>
+                  <input
+                    value={tierPrices[t.key] ?? ""}
+                    onChange={e => setTier(t.key, e.target.value)}
+                    placeholder="—"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary text-center"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t border-border">
+          <Button onClick={handleSave} className="rounded-full gap-2">
+            <Plus className="h-4 w-4" /> Dodaj storitev
+          </Button>
+          <Button variant="outline" className="rounded-full" onClick={onClose}>Prekliči</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Service price editor
 // ---------------------------------------------------------------------------
 
@@ -848,7 +929,7 @@ function ServicePricesEditor() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [newIssue, setNewIssue] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchServicePrices().then(p => { setPrices(p); setLoading(false); });
@@ -857,13 +938,8 @@ function ServicePricesEditor() {
   const update = (issue: string, tier: string, val: string) =>
     setPrices(prev => ({ ...prev, [issue]: { ...prev[issue], [tier]: val } }));
 
-  const addIssue = () => {
-    const name = newIssue.trim();
-    if (!name) return;
-    if (prices[name]) { toast.error("Storitev s tem imenom že obstaja."); return; }
-    setPrices(prev => ({ ...prev, [name]: {} }));
-    setNewIssue("");
-  };
+  const addIssue = (name: string, tierPrices: Partial<Record<string, string>>) =>
+    setPrices(prev => ({ ...prev, [name]: tierPrices }));
 
   const removeIssue = (issue: string) => {
     if (!confirm(`Izbriši storitev "${issue}"?`)) return;
@@ -893,11 +969,22 @@ function ServicePricesEditor() {
 
   return (
     <div className="mb-8">
+      {showAddModal && (
+        <AddServiceModal
+          existingKeys={issueNames}
+          onAdd={addIssue}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-lg">Cene storitev</h2>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={reset}>Ponastavi</Button>
-          <Button size="sm" onClick={save} disabled={saving}>
+          <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-3.5 w-3.5" /> Dodaj storitev
+          </Button>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={reset}>Ponastavi</Button>
+          <Button size="sm" className="rounded-full" onClick={save} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
             Shrani
           </Button>
@@ -910,8 +997,8 @@ function ServicePricesEditor() {
           <div>
             <p className="font-semibold">Shranjevanje ni uspelo</p>
             <p className="font-mono text-xs mt-0.5">{saveError}</p>
-            {(saveError.includes("does not exist") || saveError.includes("relation")) && (
-              <p className="mt-1 text-xs">Zaženite <code className="bg-red-100 rounded px-0.5">supabase/setup-all.sql</code> v Supabase SQL Editorju, da ustvarite tabelo <code className="bg-red-100 rounded px-0.5">settings</code>.</p>
+            {(saveError.includes("does not exist") || saveError.includes("relation") || saveError.includes("schema cache")) && (
+              <p className="mt-1 text-xs">Zaženite <code className="bg-red-100 rounded px-0.5">supabase/setup-all.sql</code> v Supabase SQL Editorju — tabela <code className="bg-red-100 rounded px-0.5">settings</code> še ne obstaja.</p>
             )}
           </div>
         </div>
@@ -921,11 +1008,11 @@ function ServicePricesEditor() {
         <table className="text-xs w-full">
           <thead>
             <tr className="bg-muted/50">
-              <th className="text-left px-3 py-2 font-medium w-44 min-w-44">Storitev</th>
+              <th className="text-left px-3 py-2.5 font-medium w-44 min-w-44">Storitev</th>
               {TIERS.map(t => (
-                <th key={t.key} className="px-2 py-2 font-medium text-center min-w-[90px] whitespace-nowrap">{t.label}</th>
+                <th key={t.key} className="px-2 py-2.5 font-medium text-center min-w-[90px] whitespace-nowrap">{t.label}</th>
               ))}
-              <th className="w-8" />
+              <th className="w-10" />
             </tr>
           </thead>
           <tbody>
@@ -942,7 +1029,7 @@ function ServicePricesEditor() {
                     />
                   </td>
                 ))}
-                <td className="px-1.5 py-1">
+                <td className="px-1.5 py-1 text-center">
                   <button
                     type="button"
                     onClick={() => removeIssue(issue)}
@@ -954,28 +1041,11 @@ function ServicePricesEditor() {
                 </td>
               </tr>
             ))}
-            {/* Add new row */}
-            <tr className="bg-muted/10 border-t border-border">
-              <td className="px-2 py-2" colSpan={TIERS.length + 2}>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={newIssue}
-                    onChange={e => setNewIssue(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && addIssue()}
-                    placeholder="Nova storitev, npr. Zamenjava kamere..."
-                    className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <Button type="button" size="sm" variant="outline" onClick={addIssue} disabled={!newIssue.trim()}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj
-                  </Button>
-                </div>
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        Pusti prazno = "Po diagnostiki". Stolpci so modeli naprav po skupinah. Cene se takoj odrazijo v booking formi in klepetu.
+        Pusti prazno = "Po diagnostiki". Stolpci so naprave po skupinah. Cene se odrazijo v booking formi in klepetu.
       </p>
     </div>
   );
