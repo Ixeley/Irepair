@@ -1,7 +1,8 @@
 import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
 
-const BUSINESS_EMAIL = "info@irepair.si";
+// Override with RESEND_TO env var when using onboarding@resend.dev (must match Resend account email)
+const BUSINESS_EMAIL = process.env.RESEND_TO ?? "info@irepair.si";
 
 const URGENCY_LABELS: Record<string, string> = {
   standard: "Standardno (2–5 dni)",
@@ -185,33 +186,40 @@ export const handler: Handler = async (event) => {
 
   const resend = new Resend(apiKey);
 
+  // FROM address — must match a domain verified in Resend dashboard.
+  // If irepair.si is not yet verified, add DNS records in Resend → Domains.
+  const FROM_SENDER = process.env.RESEND_FROM ?? "iRepair <narocila@irepair.si>";
+
   try {
     // Email to business
-    await resend.emails.send({
-      from: "iRepair Naročila <narocila@irepair.si>",
+    const biz = await resend.emails.send({
+      from: FROM_SENDER,
       to: [BUSINESS_EMAIL],
       replyTo: data.email,
       subject: `🔧 Novo naročilo: ${data.device}${data.model ? ` ${data.model}` : ""} — ${data.name}`,
       html: buildBusinessEmail(data),
     });
+    if (biz.error) throw new Error(biz.error.message);
 
     // Confirmation email to customer
-    await resend.emails.send({
-      from: "iRepair <narocila@irepair.si>",
+    const conf = await resend.emails.send({
+      from: FROM_SENDER,
       to: [data.email],
       subject: "iRepair — Vaše povpraševanje smo prejeli ✅",
       html: buildConfirmationEmail(data.name, data.device, data.model),
     });
+    if (conf.error) throw new Error(conf.error.message);
 
     return {
       statusCode: 200,
       body: JSON.stringify({ ok: true }),
     };
   } catch (err) {
-    console.error("Resend error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Resend error:", msg);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: "Napaka pri pošiljanju e-pošte." }),
+      body: JSON.stringify({ error: `Napaka pri pošiljanju: ${msg}` }),
     };
   }
 };
