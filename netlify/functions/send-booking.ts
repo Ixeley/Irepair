@@ -1,7 +1,8 @@
 import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
 
-const BUSINESS_EMAIL = "info@irepair.si";
+// Override with RESEND_TO env var when using onboarding@resend.dev (must match Resend account email)
+const BUSINESS_EMAIL = process.env.RESEND_TO ?? "info@irepair.si";
 
 const URGENCY_LABELS: Record<string, string> = {
   standard: "Standardno (2–5 dni)",
