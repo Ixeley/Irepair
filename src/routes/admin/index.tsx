@@ -848,7 +848,11 @@ function LiveVisitors() {
     channel.on("broadcast", { event: "visitor_update" }, ({ payload }) => {
       const v = payload as VisitorState;
       if (!v?.sessionId) return;
-      setVisitors(prev => new Map(prev).set(v.sessionId, v));
+      setVisitors(prev => {
+        const existing = prev.get(v.sessionId);
+        if (existing && new Date(existing.lastSeen) >= new Date(v.lastSeen)) return prev;
+        return new Map(prev).set(v.sessionId, v);
+      });
     });
 
     channel.on("broadcast", { event: "visitor_leave" }, ({ payload }) => {
