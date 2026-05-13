@@ -99,8 +99,12 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html { scroll-behavior: smooth; }
+  *, *::before, *::after { border-color: var(--color-border); box-sizing: border-box; }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -108,14 +112,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    /* Prevent horizontal overflow on Android */
     overflow-x: hidden;
+    max-width: 100%;
   }
   h1, h2, h3, h4 { letter-spacing: -0.02em; }
-  /* Safe-area bottom helper — used by fixed elements */
-  :root {
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-  }
+  /* Prevent iOS Safari auto-zoom on input focus (triggers when font-size < 16px) */
+  input:not([type="range"]), textarea, select { font-size: max(16px, 1em); }
 }
 
 @layer utilities {
