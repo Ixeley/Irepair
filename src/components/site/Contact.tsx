@@ -9,10 +9,10 @@ export function Contact() {
           <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Pridite mimo ali nas pokličite</h2>
         </div>
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="rounded-3xl overflow-hidden shadow-card aspect-video lg:aspect-auto min-h-[360px]">
+          <div className="rounded-3xl overflow-hidden shadow-card aspect-video lg:aspect-auto lg:min-h-[260px]">
             <iframe
               title="iRepair Lokacija — Koprska 94, Ljubljana"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=14.5018%2C46.0365%2C14.5118%2C46.0425&layer=mapnik&marker=46.0394%2C14.5068"
+              src="https://www.google.com/maps?q=Koprska+94,+Ljubljana&output=embed"
               className="w-full h-full border-0"
               loading="lazy"
               allowFullScreen
