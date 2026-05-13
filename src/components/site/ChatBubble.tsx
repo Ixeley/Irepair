@@ -349,35 +349,6 @@ export function ChatBubble() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
 
-  // Subscribe to admin's chat_accept when chat is open
-  useEffect(() => {
-    if (!open) return;
-    const sid = getSessionId();
-    const ch = supabase.channel(VISITOR_CHANNEL + "_chat_listen_" + sid);
-    ch.on("broadcast", { event: "chat_accept" }, ({ payload }) => {
-      if (payload.sessionId !== sid) return;
-      updateVisitorState({ liveChatActive: true, wantsLiveChat: false });
-      // Subscribe to live chat channel
-      const liveChannel = supabase.channel(liveChatChannel(sid));
-      liveChannel.on("broadcast", { event: "chat_message" }, ({ payload: p }) => {
-        if (p.from === "admin") {
-          push({ role: "bot", text: p.text });
-        }
-      });
-      liveChannel.on("broadcast", { event: "chat_end" }, () => {
-        push({ role: "bot", text: "Zaposleni je zapustil klepet. Hvala za pogovor! 👋\n\nZa nadaljnjo pomoč pokličite 059 023 951." });
-        setStep("done");
-        updateVisitorState({ liveChatActive: false, wantsLiveChat: false });
-        if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
-      });
-      liveChannel.subscribe();
-      liveChatRef.current = liveChannel;
-      setStep("live_chat");
-      push({ role: "bot", text: "✅ Zaposleni se je pridružil klepetu!\n\nKako vam lahko pomagamo?" });
-    });
-    ch.subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [open]);
 
   const push = (...msgs: Msg[]) => setMessages(prev => [...prev, ...msgs]);
 
@@ -466,6 +437,14 @@ export function ChatBubble() {
 
       // Free-text message
       push({ role: "user", text: userText });
+
+      // Live agent request detection
+      const tLower = userText.toLowerCase();
+      if (/zaposlen|agent|[cč]lovek|operater|oseb|pogovor|poveži|poveji|live|prav[i]? [cč]lovek/.test(tLower) &&
+          /ho[cč]|rab|pros|[žz]elim|daj|pokli[cč]|povezi|poveži/.test(tLower)) {
+        requestLiveChat();
+        return;
+      }
 
       // FAQ check first
       const faqAnswer = matchFaq(userText);
@@ -744,9 +723,42 @@ export function ChatBubble() {
     "Izberite možnost zgoraj...";
 
   const requestLiveChat = () => {
+    if (liveChatRef.current) return; // already connected or waiting
     updateVisitorState({ wantsLiveChat: true });
     setStep("live_chat_waiting");
-    push({ role: "bot", text: "🔔 Pošiljam sporočilo zaposlenemu...\n\nPočakajte, zaposleni se bo priključil v kratkem. Medtem mi lahko opišete težavo." });
+    push({ role: "bot", text: "🔔 Sporočilo je poslano zaposlenemu.\n\nPočakajte, priključil se bo v kratkem. Medtem mi lahko opišete težavo." });
+
+    // Subscribe now so we receive chat_accept the moment admin connects
+    const sid = getSessionId();
+    const ch = supabase.channel(liveChatChannel(sid));
+
+    ch.on("broadcast", { event: "chat_accept" }, () => {
+      updateVisitorState({ liveChatActive: true, wantsLiveChat: false });
+      setStep("live_chat");
+      push({ role: "bot", text: "✅ Zaposleni se je pridružil klepetu!\n\nKako vam lahko pomagamo?" });
+    });
+
+    ch.on("broadcast", { event: "chat_message" }, ({ payload: p }) => {
+      if (p.from === "admin") push({ role: "bot", text: p.text });
+    });
+
+    ch.on("broadcast", { event: "chat_end" }, () => {
+      push({ role: "bot", text: "Zaposleni je zapustil klepet. Hvala za pogovor! 👋\n\nZa nadaljnjo pomoč pokličite 059 023 951." });
+      setStep("done");
+      updateVisitorState({ liveChatActive: false, wantsLiveChat: false });
+      if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
+    });
+
+    ch.on("broadcast", { event: "chat_handback" }, () => {
+      updateVisitorState({ liveChatActive: false, wantsLiveChat: false, chatActive: true });
+      if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
+      push({ role: "bot", text: "Zaposleni vas je predal nazaj pomočniku. 🤖\n\nKatera naprava vas skrbi?" });
+      setStep("device_select");
+      push({ role: "bot", text: "Izberite napravo:", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+    });
+
+    ch.subscribe();
+    liveChatRef.current = ch;
   };
 
   const resetChat = () => {
@@ -829,9 +841,9 @@ export function ChatBubble() {
 
           {/* Live chat request button */}
           {!["done","sending","live_chat","live_chat_waiting"].includes(step) && (
-            <div className="px-3 pb-2 flex-shrink-0">
-              <button onClick={requestLiveChat} className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline w-full text-center">
-                💬 Pogovor z zaposlenim
+            <div className="px-3 pb-2 flex-shrink-0 flex justify-center">
+              <button onClick={requestLiveChat} className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline flex items-center gap-1">
+                <MessageCircle className="h-3 w-3" /> Pogovor z zaposlenim
               </button>
             </div>
           )}

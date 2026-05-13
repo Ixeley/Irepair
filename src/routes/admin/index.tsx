@@ -820,27 +820,23 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
 
   const connectChat = async () => {
     const sid = visitor.sessionId;
-    const liveChannel = supabase.channel(liveChatChannel(sid));
+    // Single channel for everything — visitor is already subscribed to this channel
+    const ch = supabase.channel(liveChatChannel(sid));
 
-    liveChannel.on("broadcast", { event: "chat_message" }, ({ payload }) => {
+    ch.on("broadcast", { event: "chat_message" }, ({ payload }) => {
       if (payload.from === "user") {
         setChatMessages(prev => [...prev, { from: "user", text: payload.text }]);
       }
     });
 
-    liveChannel.subscribe(async (status) => {
+    ch.subscribe(async (status) => {
       if (status !== "SUBSCRIBED") return;
-      // Signal visitor via their listen channel
-      const acceptCh = supabase.channel(VISITOR_CHANNEL + "_chat_listen_" + sid);
-      acceptCh.subscribe(async (aStatus) => {
-        if (aStatus !== "SUBSCRIBED") return;
-        await acceptCh.send({ type: "broadcast", event: "chat_accept", payload: { sessionId: sid } });
-        setTimeout(() => supabase.removeChannel(acceptCh), 2000);
-      });
+      // Send accept — visitor receives it on the same channel they're already on
+      await ch.send({ type: "broadcast", event: "chat_accept", payload: {} });
       setChatConnected(true);
     });
 
-    chatChannelRef.current = liveChannel;
+    chatChannelRef.current = ch;
   };
 
   const sendAdminMessage = async () => {
@@ -849,6 +845,17 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
     setChatInput("");
     setChatMessages(prev => [...prev, { from: "admin", text }]);
     await chatChannelRef.current.send({ type: "broadcast", event: "chat_message", payload: { from: "admin", text } });
+  };
+
+  const handbackToBot = async () => {
+    if (chatChannelRef.current) {
+      await chatChannelRef.current.send({ type: "broadcast", event: "chat_handback", payload: {} });
+      supabase.removeChannel(chatChannelRef.current);
+      chatChannelRef.current = null;
+    }
+    setChatConnected(false);
+    setChatMessages([]);
+    setChatInput("");
   };
 
   const endChat = async () => {
@@ -916,16 +923,25 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
           {/* Live chat UI */}
           {chatConnected && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-purple-700 flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" /> Živi klepet
                 </span>
-                <button
-                  onClick={endChat}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
-                >
-                  Končaj klepet
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handbackToBot}
+                    className="text-xs text-violet-600 hover:text-violet-700 font-medium hover:underline"
+                    title="Preda pogovor nazaj botu — bot vodi uporabnika naprej"
+                  >
+                    🤖 Preda botu
+                  </button>
+                  <button
+                    onClick={endChat}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
+                  >
+                    Končaj klepet
+                  </button>
+                </div>
               </div>
               <div ref={chatScrollRef} className="bg-secondary/40 rounded-xl p-3 space-y-2 max-h-56 overflow-y-auto">
                 {chatMessages.length === 0 && (
