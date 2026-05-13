@@ -253,6 +253,8 @@ export function BookingForm() {
 
   const trackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // Only start tracking from step 2 onwards — avoids showing auto-detected device before user confirms
+    if (step < 2) return;
     if (trackTimer.current) clearTimeout(trackTimer.current);
     trackTimer.current = setTimeout(() => {
       updateVisitorState({

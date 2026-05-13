@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { initVisitorTracking, updateVisitorState } from "@/lib/visitor-presence";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -67,18 +68,31 @@ const SELL_CONDITIONS = [
 // Product card
 // ---------------------------------------------------------------------------
 
-function ProductCard({ product, onInquiry }: {
+function ProductCard({ product, onInquiry, onHover }: {
   product: ShopProduct;
   onInquiry: (p: ShopProduct, color: string) => void;
+  onHover?: (name: string | null) => void;
 }) {
   const [selectedColor, setSelectedColor] = useState(product.colors[0] ?? "");
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const img = product.images[0];
   const cond = CONDITION_LABELS[product.condition] ?? { label: product.condition, color: "bg-gray-100 text-gray-700" };
   const stock = STOCK_LABELS[product.stock_status ?? "na_zalogi"] ?? STOCK_LABELS.na_zalogi;
   const isUnavailable = product.stock_status === "ni_zalogi";
 
+  const handleMouseEnter = () => {
+    hoverTimer.current = setTimeout(() => onHover?.(product.name), 1500);
+  };
+  const handleMouseLeave = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  };
+
   return (
-    <div className={`bg-card rounded-2xl shadow-soft overflow-hidden flex flex-col hover:shadow-card transition-shadow ${isUnavailable ? "opacity-60" : ""}`}>
+    <div
+      className={`bg-card rounded-2xl shadow-soft overflow-hidden flex flex-col hover:shadow-card transition-shadow ${isUnavailable ? "opacity-60" : ""}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Image */}
       <div className="aspect-square bg-secondary/40 overflow-hidden relative">
         {img ? (
@@ -368,6 +382,34 @@ function ShopPage() {
   const [inquiry, setInquiry] = useState<{ product: ShopProduct; color: string } | null>(null);
 
   useEffect(() => {
+    return initVisitorTracking("shop");
+  }, []);
+
+  useEffect(() => {
+    updateVisitorState({
+      activity: "shop",
+      shopTab: tab,
+      shopCategory: tab === "buy" ? category : undefined,
+      shopProduct: undefined,
+      shopInquiry: undefined,
+    });
+  }, [tab, category]);
+
+  const handleInquiry = (product: ShopProduct, color: string) => {
+    setInquiry({ product, color });
+    updateVisitorState({ shopInquiry: color ? `${product.name} (${color})` : product.name });
+  };
+
+  const handleInquiryClose = () => {
+    setInquiry(null);
+    updateVisitorState({ shopInquiry: undefined });
+  };
+
+  const handleProductHover = (name: string | null) => {
+    if (name) updateVisitorState({ shopProduct: name });
+  };
+
+  useEffect(() => {
     const fetch_ = async () => {
       try {
         const { data, error } = await supabase
@@ -456,7 +498,8 @@ function ShopPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filtered.map(p => (
                   <ProductCard key={p.id} product={p}
-                    onInquiry={(product, color) => setInquiry({ product, color })} />
+                    onInquiry={handleInquiry}
+                    onHover={handleProductHover} />
                 ))}
               </div>
             )}
@@ -505,7 +548,7 @@ function ShopPage() {
         <PurchaseModal
           product={inquiry.product}
           selectedColor={inquiry.color}
-          onClose={() => setInquiry(null)}
+          onClose={handleInquiryClose}
         />
       )}
 

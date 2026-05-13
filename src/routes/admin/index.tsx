@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle, Users } from "lucide-react";
 import type { VisitorState } from "@/lib/visitor-presence";
-import { VISITOR_CHANNEL } from "@/lib/visitor-presence";
+import { VISITOR_CHANNEL, markAsAdmin } from "@/lib/visitor-presence";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/")({
@@ -755,63 +755,133 @@ const URGENCY_LABELS: Record<string, string> = {
 };
 
 function VisitorCard({ visitor }: { visitor: VisitorState }) {
+  const [expanded, setExpanded] = useState(false);
+  const isBooking = visitor.activity === "booking";
+  const isShop = visitor.activity === "shop";
+
   const elapsed = useMemo(() => {
     const mins = Math.floor((Date.now() - new Date(visitor.joinedAt).getTime()) / 60000);
     if (mins < 1) return "< 1 min";
     return `${mins} min`;
   }, [visitor.joinedAt]);
 
-  const isBooking = visitor.activity === "booking";
+  const pageLabel = visitor.page === "shop" ? "Shop" : "Servis";
+  const activityLabel = isBooking
+    ? `Izpolnjuje obrazec · Korak ${visitor.bookingStep ?? 1}/6`
+    : isShop
+    ? visitor.shopInquiry ? "Povpraševanje za nakup"
+      : visitor.shopTab === "sell" ? "Prodaja naprave"
+      : "Brska po shopu"
+    : "Brska po strani";
+
+  const dotColor = isBooking ? "bg-primary animate-pulse"
+    : isShop ? "bg-amber-500 animate-pulse"
+    : "bg-emerald-500";
+
+  const border = isBooking ? "border-primary/30 bg-primary/5"
+    : isShop ? "border-amber-200 bg-amber-50/50"
+    : "border-border bg-card";
 
   return (
-    <div className={`rounded-2xl border p-4 ${isBooking ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <div className="flex items-center justify-between gap-4 mb-1">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${isBooking ? "bg-primary animate-pulse" : "bg-emerald-500"}`} />
+    <div className={`rounded-2xl border ${border}`}>
+      <button
+        type="button"
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer select-none"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${dotColor}`} />
           <span className="text-xs font-mono text-muted-foreground">{visitor.sessionId}</span>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs font-semibold">{pageLabel}</span>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground truncate">{activityLabel}</span>
         </div>
-        <span className="text-xs text-muted-foreground">{elapsed}</span>
-      </div>
+        <div className="flex items-center gap-2 flex-shrink-0 text-xs text-muted-foreground">
+          <span>{elapsed}</span>
+          <span>{expanded ? "▲" : "▼"}</span>
+        </div>
+      </button>
 
-      {isBooking ? (
-        <div className="mt-2 space-y-2 text-xs">
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
-            Korak {visitor.bookingStep}/6 — {STEP_LABELS[(visitor.bookingStep ?? 1) - 1]}
-          </span>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
-            {visitor.bookingDevice && <div><span className="text-muted-foreground">Naprava: </span><span className="font-medium">{visitor.bookingDevice}</span></div>}
-            {visitor.bookingModel  && <div><span className="text-muted-foreground">Model: </span><span className="font-medium">{visitor.bookingModel}</span></div>}
-            {visitor.bookingIssues?.length ? <div className="col-span-2"><span className="text-muted-foreground">Težave: </span><span className="font-medium">{visitor.bookingIssues.join(", ")}</span></div> : null}
-            {visitor.bookingUrgency && <div><span className="text-muted-foreground">Urgentnost: </span><span className="font-medium">{URGENCY_LABELS[visitor.bookingUrgency] ?? visitor.bookingUrgency}</span></div>}
-            {visitor.bookingName  && <div><span className="text-muted-foreground">Ime: </span><span className="font-medium">{visitor.bookingName}</span></div>}
-            {visitor.bookingPhone && <div><span className="text-muted-foreground">Tel: </span><span className="font-medium">{visitor.bookingPhone}</span></div>}
-            {visitor.bookingEmail && <div className="col-span-2"><span className="text-muted-foreground">Email: </span><span className="font-medium">{visitor.bookingEmail}</span></div>}
-          </div>
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-border/40 pt-3 text-xs space-y-1.5">
+          {isBooking && (
+            <>
+              <span className="inline-flex items-center font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
+                Korak {visitor.bookingStep}/6 — {STEP_LABELS[(visitor.bookingStep ?? 1) - 1]}
+              </span>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-2">
+                {visitor.bookingDevice && <div><span className="text-muted-foreground">Naprava: </span><span className="font-medium">{visitor.bookingDevice}</span></div>}
+                {visitor.bookingModel  && <div><span className="text-muted-foreground">Model: </span><span className="font-medium">{visitor.bookingModel}</span></div>}
+                {visitor.bookingIssues?.length ? <div className="col-span-2"><span className="text-muted-foreground">Težave: </span><span className="font-medium">{visitor.bookingIssues.join(", ")}</span></div> : null}
+                {visitor.bookingUrgency && <div><span className="text-muted-foreground">Urgentnost: </span><span className="font-medium">{URGENCY_LABELS[visitor.bookingUrgency] ?? visitor.bookingUrgency}</span></div>}
+                {visitor.bookingName  && <div><span className="text-muted-foreground">Ime: </span><span className="font-medium">{visitor.bookingName}</span></div>}
+                {visitor.bookingPhone && <div><span className="text-muted-foreground">Tel: </span><span className="font-medium">{visitor.bookingPhone}</span></div>}
+                {visitor.bookingEmail && <div className="col-span-2"><span className="text-muted-foreground">Email: </span><span className="font-medium">{visitor.bookingEmail}</span></div>}
+              </div>
+            </>
+          )}
+          {isShop && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              <div><span className="text-muted-foreground">Tab: </span><span className="font-medium">{visitor.shopTab === "sell" ? "Prodaja" : "Kupovanje"}</span></div>
+              {visitor.shopCategory && visitor.shopCategory !== "vse" && <div><span className="text-muted-foreground">Kategorija: </span><span className="font-medium">{visitor.shopCategory}</span></div>}
+              {visitor.shopProduct && <div className="col-span-2"><span className="text-muted-foreground">Gleda: </span><span className="font-medium">{visitor.shopProduct}</span></div>}
+              {visitor.shopInquiry && <div className="col-span-2"><span className="text-muted-foreground">Povpraševanje: </span><span className="font-medium text-amber-700">{visitor.shopInquiry}</span></div>}
+            </div>
+          )}
+          {!isBooking && !isShop && (
+            <p className="text-muted-foreground">Brska po {pageLabel === "Shop" ? "shopu" : "servisni strani"}</p>
+          )}
         </div>
-      ) : (
-        <p className="text-xs text-muted-foreground mt-1">Brska po strani</p>
       )}
     </div>
   );
 }
 
 function LiveVisitors() {
-  const [visitors, setVisitors] = useState<VisitorState[]>([]);
+  const [visitors, setVisitors] = useState<Map<string, VisitorState>>(new Map());
 
   useEffect(() => {
+    markAsAdmin();
     const channel = supabase.channel(VISITOR_CHANNEL);
 
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState<VisitorState>();
-      setVisitors(Object.values(state).flat());
+    channel.on("broadcast", { event: "visitor_update" }, ({ payload }) => {
+      const v = payload as VisitorState;
+      if (!v?.sessionId) return;
+      setVisitors(prev => new Map(prev).set(v.sessionId, v));
     });
 
-    channel.subscribe();
+    channel.on("broadcast", { event: "visitor_leave" }, ({ payload }) => {
+      const v = payload as VisitorState;
+      if (!v?.sessionId) return;
+      setVisitors(prev => { const m = new Map(prev); m.delete(v.sessionId); return m; });
+    });
 
-    return () => { supabase.removeChannel(channel); };
+    channel.subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        // Ask all active visitors to report their current state
+        await channel.send({ type: "broadcast", event: "request_state", payload: {} });
+      }
+    });
+
+    // Remove visitors not seen for 60 seconds
+    const gc = setInterval(() => {
+      const cutoff = Date.now() - 60000;
+      setVisitors(prev => {
+        const m = new Map(prev);
+        let changed = false;
+        for (const [id, v] of m) {
+          if (new Date(v.lastSeen).getTime() < cutoff) { m.delete(id); changed = true; }
+        }
+        return changed ? m : prev;
+      });
+    }, 15000);
+
+    return () => { clearInterval(gc); supabase.removeChannel(channel); };
   }, []);
 
-  const booking = visitors.filter(v => v.activity === "booking").length;
+  const list = Array.from(visitors.values());
+  const booking = list.filter(v => v.activity === "booking").length;
 
   return (
     <div className="mb-8">
@@ -821,7 +891,7 @@ function LiveVisitors() {
         </h2>
         <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-0.5">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          {visitors.length} {visitors.length === 1 ? "obiskovalec" : "obiskovalcev"}
+          {list.length} {list.length === 1 ? "obiskovalec" : "obiskovalcev"}
         </span>
         {booking > 0 && (
           <span className="flex items-center gap-1.5 text-sm font-medium text-primary bg-primary/10 border border-primary/20 rounded-full px-3 py-0.5">
@@ -831,11 +901,11 @@ function LiveVisitors() {
         )}
       </div>
 
-      {visitors.length === 0 ? (
+      {list.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4">Trenutno ni aktivnih obiskovalcev.</p>
       ) : (
         <div className="space-y-2">
-          {visitors.map(v => <VisitorCard key={v.sessionId} visitor={v} />)}
+          {list.map(v => <VisitorCard key={v.sessionId} visitor={v} />)}
         </div>
       )}
     </div>
