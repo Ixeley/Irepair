@@ -843,39 +843,53 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
 // Service price editor
 // ---------------------------------------------------------------------------
 
-const ISSUE_LABELS = Object.keys(DEFAULT_PRICES);
-
 function ServicePricesEditor() {
   const [prices, setPrices] = useState<IssuePrices>(DEFAULT_PRICES);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newIssue, setNewIssue] = useState("");
 
   useEffect(() => {
     fetchServicePrices().then(p => { setPrices(p); setLoading(false); });
   }, []);
 
-  const update = (issue: string, tier: string, val: string) => {
-    setPrices(prev => ({
-      ...prev,
-      [issue]: { ...prev[issue], [tier]: val },
-    }));
+  const update = (issue: string, tier: string, val: string) =>
+    setPrices(prev => ({ ...prev, [issue]: { ...prev[issue], [tier]: val } }));
+
+  const addIssue = () => {
+    const name = newIssue.trim();
+    if (!name) return;
+    if (prices[name]) { toast.error("Storitev s tem imenom že obstaja."); return; }
+    setPrices(prev => ({ ...prev, [name]: {} }));
+    setNewIssue("");
+  };
+
+  const removeIssue = (issue: string) => {
+    if (!confirm(`Izbriši storitev "${issue}"?`)) return;
+    setPrices(prev => { const copy = { ...prev }; delete copy[issue]; return copy; });
   };
 
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await saveServicePrices(prices);
       invalidatePricesCache();
-      toast.success("Cene so shranjene");
-    } catch {
+      toast.success("Cene so shranjene!");
+    } catch (e) {
+      const msg = (e as Error).message;
+      setSaveError(msg);
       toast.error("Napaka pri shranjevanju");
     }
     setSaving(false);
   };
 
-  const reset = () => { setPrices(DEFAULT_PRICES); toast("Cene so resetirane (še niso shranjene)"); };
+  const reset = () => { setPrices(DEFAULT_PRICES); setSaveError(null); toast("Cene so resetirane (še niso shranjene)"); };
 
   if (loading) return <div className="mb-8 text-sm text-muted-foreground">Nalaganje cen…</div>;
+
+  const issueNames = Object.keys(prices);
 
   return (
     <div className="mb-8">
@@ -890,20 +904,34 @@ function ServicePricesEditor() {
         </div>
       </div>
 
+      {saveError && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500" />
+          <div>
+            <p className="font-semibold">Shranjevanje ni uspelo</p>
+            <p className="font-mono text-xs mt-0.5">{saveError}</p>
+            {(saveError.includes("does not exist") || saveError.includes("relation")) && (
+              <p className="mt-1 text-xs">Zaženite <code className="bg-red-100 rounded px-0.5">supabase/setup-all.sql</code> v Supabase SQL Editorju, da ustvarite tabelo <code className="bg-red-100 rounded px-0.5">settings</code>.</p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-2xl border">
         <table className="text-xs w-full">
           <thead>
             <tr className="bg-muted/50">
-              <th className="text-left px-3 py-2 font-medium w-36 min-w-36">Storitev</th>
+              <th className="text-left px-3 py-2 font-medium w-44 min-w-44">Storitev</th>
               {TIERS.map(t => (
-                <th key={t.key} className="px-2 py-2 font-medium text-center min-w-24">{t.label}</th>
+                <th key={t.key} className="px-2 py-2 font-medium text-center min-w-[90px] whitespace-nowrap">{t.label}</th>
               ))}
+              <th className="w-8" />
             </tr>
           </thead>
           <tbody>
-            {ISSUE_LABELS.map((issue, i) => (
+            {issueNames.map((issue, i) => (
               <tr key={issue} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                <td className="px-3 py-1.5 font-medium text-foreground">{issue}</td>
+                <td className="px-3 py-1.5 font-medium text-foreground whitespace-nowrap">{issue}</td>
                 {TIERS.map(t => (
                   <td key={t.key} className="px-1.5 py-1">
                     <input
@@ -914,12 +942,41 @@ function ServicePricesEditor() {
                     />
                   </td>
                 ))}
+                <td className="px-1.5 py-1">
+                  <button
+                    type="button"
+                    onClick={() => removeIssue(issue)}
+                    className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Izbriši storitev"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
               </tr>
             ))}
+            {/* Add new row */}
+            <tr className="bg-muted/10 border-t border-border">
+              <td className="px-2 py-2" colSpan={TIERS.length + 2}>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={newIssue}
+                    onChange={e => setNewIssue(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && addIssue()}
+                    placeholder="Nova storitev, npr. Zamenjava kamere..."
+                    className="flex-1 rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <Button type="button" size="sm" variant="outline" onClick={addIssue} disabled={!newIssue.trim()}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj
+                  </Button>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground mt-2">Pusti prazno za "Po diagnostiki". Cene se takoj odrazijo v booking formi in klepetu.</p>
+      <p className="text-xs text-muted-foreground mt-2">
+        Pusti prazno = "Po diagnostiki". Stolpci so modeli naprav po skupinah. Cene se takoj odrazijo v booking formi in klepetu.
+      </p>
     </div>
   );
 }
