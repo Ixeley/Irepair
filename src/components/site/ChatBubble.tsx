@@ -3,6 +3,8 @@ import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { fetchServicePrices, DEFAULT_PRICES, type IssuePrices, type Tier } from "@/lib/service-prices";
+import { updateVisitorState, getSessionId, liveChatChannel, VISITOR_CHANNEL } from "@/lib/visitor-presence";
+import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
 // Static data
@@ -276,7 +278,8 @@ type Step =
   | "issue_first" | "issue_more" | "issue_add"
   | "urgency" | "upsell" | "upsell_pick"
   | "name" | "phone" | "email"
-  | "confirm" | "sending" | "done";
+  | "confirm" | "sending" | "done"
+  | "live_chat_waiting" | "live_chat";
 
 interface Diag {
   device: string; model: string;
@@ -304,6 +307,8 @@ export function ChatBubble() {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const greeted = useRef(false);
+  const liveChatRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [liveInput, setLiveInput] = useState("");
 
   useEffect(() => { fetchServicePrices().then(setPrices); }, []);
 
@@ -311,6 +316,7 @@ export function ChatBubble() {
   useEffect(() => {
     if (!open || greeted.current) return;
     greeted.current = true;
+    updateVisitorState({ chatActive: true });
     const dd = detectDeviceType();
     const dm = dd ? detectModel(dd) : null;
     setDiag(prev => ({ ...prev, detectedDevice: dd, detectedModel: dm }));
@@ -342,6 +348,7 @@ export function ChatBubble() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, open]);
+
 
   const push = (...msgs: Msg[]) => setMessages(prev => [...prev, ...msgs]);
 
@@ -431,6 +438,14 @@ export function ChatBubble() {
       // Free-text message
       push({ role: "user", text: userText });
 
+      // Live agent request detection
+      const tLower = userText.toLowerCase();
+      if (/zaposlen|agent|[cč]lovek|operater|oseb|pogovor|poveži|poveji|live|prav[i]? [cč]lovek/.test(tLower) &&
+          /ho[cč]|rab|pros|[žz]elim|daj|pokli[cč]|povezi|poveži/.test(tLower)) {
+        requestLiveChat();
+        return;
+      }
+
       // FAQ check first
       const faqAnswer = matchFaq(userText);
       if (faqAnswer) {
@@ -495,6 +510,7 @@ export function ChatBubble() {
         const model = diag.detectedModel ?? diag.model ?? "";
         const updated = { ...diag, device, model };
         setDiag(updated);
+        if (model) updateVisitorState({ chatActive: true, chatDevice: device, chatModel: model });
         if (model) {
           if (updated.issues.length > 0) {
             showQuickPrice(updated);
@@ -529,6 +545,7 @@ export function ChatBubble() {
       push({ role: "user", text: val });
       const updated = { ...diag, model: val };
       setDiag(updated);
+      updateVisitorState({ chatActive: true, chatDevice: updated.device, chatModel: val });
       if (updated.issues.length > 0) {
         showQuickPrice(updated);
       } else {
@@ -543,6 +560,7 @@ export function ChatBubble() {
       push({ role: "user", text: val });
       const updated = { ...diag, issues: [val] };
       setDiag(updated);
+      updateVisitorState({ chatIssues: updated.issues });
       showQuickPrice(updated);
       return;
     }
@@ -565,6 +583,7 @@ export function ChatBubble() {
       push({ role: "user", text: val });
       const updated = { ...diag, issues: [...diag.issues, val] };
       setDiag(updated);
+      updateVisitorState({ chatIssues: updated.issues });
       setStep("issue_more");
       push({ role: "bot", text: "V redu. Je morda še kakšna težava?", buttons: [{ label: "Da, še kaj je", value: "yes" }, { label: "Ne, to je vse", value: "no" }] });
       return;
@@ -684,24 +703,73 @@ export function ChatBubble() {
     const text = input.trim();
     if (!text) return;
     setInput("");
+    if (step === "live_chat") {
+      push({ role: "user", text });
+      liveChatRef.current?.send({ type: "broadcast", event: "chat_message", payload: { from: "user", text } });
+      return;
+    }
     handleAction(text);
   };
 
-  const isTextStep = ["idle","name","phone","email"].includes(step);
+  const isTextStep = ["idle","name","phone","email","live_chat","live_chat_waiting"].includes(step);
 
   const placeholder =
     step === "idle" ? "Opišite težavo, npr. 'počen zaslon na 16 Pro'..." :
     step === "name" ? "Vaše ime in priimek..." :
     step === "phone" ? "Telefonska številka..." :
     step === "email" ? "E-mail naslov..." :
+    step === "live_chat" ? "Pišite zaposlenemu..." :
+    step === "live_chat_waiting" ? "Opišite težavo medtem ko čakate..." :
     "Izberite možnost zgoraj...";
 
+  const requestLiveChat = () => {
+    if (liveChatRef.current) return; // already connected or waiting
+    updateVisitorState({ wantsLiveChat: true });
+    setStep("live_chat_waiting");
+    push({ role: "bot", text: "🔔 Sporočilo je poslano zaposlenemu.\n\nPočakajte, priključil se bo v kratkem. Medtem mi lahko opišete težavo." });
+
+    // Subscribe now so we receive chat_accept the moment admin connects
+    const sid = getSessionId();
+    const ch = supabase.channel(liveChatChannel(sid));
+
+    ch.on("broadcast", { event: "chat_accept" }, () => {
+      updateVisitorState({ liveChatActive: true, wantsLiveChat: false });
+      setStep("live_chat");
+      push({ role: "bot", text: "✅ Zaposleni se je pridružil klepetu!\n\nKako vam lahko pomagamo?" });
+    });
+
+    ch.on("broadcast", { event: "chat_message" }, ({ payload: p }) => {
+      if (p.from === "admin") push({ role: "bot", text: p.text });
+    });
+
+    ch.on("broadcast", { event: "chat_end" }, () => {
+      push({ role: "bot", text: "Zaposleni je zapustil klepet. Hvala za pogovor! 👋\n\nZa nadaljnjo pomoč pokličite 059 023 951." });
+      setStep("done");
+      updateVisitorState({ liveChatActive: false, wantsLiveChat: false });
+      if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
+    });
+
+    ch.on("broadcast", { event: "chat_handback" }, () => {
+      updateVisitorState({ liveChatActive: false, wantsLiveChat: false, chatActive: true });
+      if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
+      push({ role: "bot", text: "Zaposleni vas je predal nazaj pomočniku. 🤖\n\nKatera naprava vas skrbi?" });
+      setStep("device_select");
+      push({ role: "bot", text: "Izberite napravo:", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+    });
+
+    ch.subscribe();
+    liveChatRef.current = ch;
+  };
+
   const resetChat = () => {
+    if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
+    updateVisitorState({ chatActive: false, wantsLiveChat: false, liveChatActive: false, chatDevice: undefined, chatModel: undefined, chatIssues: undefined });
     greeted.current = false;
     setStep("idle");
     setDiag(EMPTY_DIAG);
     setMessages([]);
     setInput("");
+    setLiveInput("");
   };
 
   return (
@@ -770,6 +838,15 @@ export function ChatBubble() {
               <div className="flex items-center gap-2 text-muted-foreground text-xs"><Loader2 className="h-4 w-4 animate-spin" /> Pošiljam...</div>
             )}
           </div>
+
+          {/* Live chat request button */}
+          {!["done","sending","live_chat","live_chat_waiting"].includes(step) && (
+            <div className="px-3 pb-2 flex-shrink-0 flex justify-center">
+              <button onClick={requestLiveChat} className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline flex items-center gap-1">
+                <MessageCircle className="h-3 w-3" /> Pogovor z zaposlenim
+              </button>
+            </div>
+          )}
 
           {/* Input */}
           <div className="p-3 border-t flex gap-2 flex-shrink-0">

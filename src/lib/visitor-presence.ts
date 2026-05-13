@@ -6,6 +6,7 @@ export type VisitorState = {
   activity: "browsing" | "booking" | "shop";
   joinedAt: string;
   lastSeen: string;
+  browserDevice?: string;
   bookingStep?: number;
   bookingDevice?: string;
   bookingModel?: string;
@@ -18,11 +19,19 @@ export type VisitorState = {
   shopCategory?: string;
   shopProduct?: string;
   shopInquiry?: string;
+  chatActive?: boolean;
+  chatDevice?: string;
+  chatModel?: string;
+  chatIssues?: string[];
+  wantsLiveChat?: boolean;
+  liveChatActive?: boolean;
 };
 
 export const VISITOR_CHANNEL = "irepair-visitors";
 
-function getSessionId(): string {
+export const liveChatChannel = (sid: string) => `irepair:chat:${sid}`;
+
+export function getSessionId(): string {
   try {
     let id = sessionStorage.getItem("_vsid");
     if (!id) {
@@ -41,6 +50,18 @@ export function markAsAdmin(): void {
 
 export function isAdmin(): boolean {
   try { return localStorage.getItem("_isAdmin") === "1"; } catch { return false; }
+}
+
+function detectBrowserDevice(): string {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua)) return "iPad";
+  if (/Android/.test(ua) && /Mobile/.test(ua)) return "Android telefon";
+  if (/Android/.test(ua)) return "Android tablica";
+  if (/Macintosh/.test(ua)) return "MacBook/iMac";
+  if (/Windows/.test(ua)) return "Windows PC";
+  if (/Linux/.test(ua)) return "Linux";
+  return "Neznana naprava";
 }
 
 // Current active tracking instance — replaced atomically on each init.
@@ -66,6 +87,7 @@ export function initVisitorTracking(page: string): () => void {
     activity: "browsing",
     joinedAt: new Date().toISOString(),
     lastSeen: new Date().toISOString(),
+    browserDevice: detectBrowserDevice(),
   };
 
   const channel = supabase.channel(VISITOR_CHANNEL);
