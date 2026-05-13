@@ -17,16 +17,7 @@ import { toast } from "sonner";
 
 const DEVICES = ["iPhone", "iPad", "MacBook", "iMac", "Apple Watch", "MagSafe", "Drugo"];
 
-const ISSUES = [
-  "Poškodovan zaslon",
-  "Ne polni / Baterija",
-  "Ne vključi se",
-  "Stik s tekočino",
-  "Počasen",
-  "Izguba podatkov",
-  "Tipkovnica ne deluje",
-  "Drugo",
-];
+// Issues are loaded dynamically from service prices (see prices state in BookingForm)
 
 const URGENCIES = [
   { v: "standard", l: "Standardno (2–5 dni)" },
@@ -395,7 +386,7 @@ export function BookingForm() {
           <h3 className="text-2xl font-bold">Kaj vas muči?</h3>
           <p className="text-sm text-muted-foreground">Izberete lahko več možnosti.</p>
           <div className="grid sm:grid-cols-2 gap-2">
-            {ISSUES.map((i) => {
+            {Object.keys(prices).map((i) => {
               const price = getPrice(prices, model, i);
               return (
                 <label
