@@ -23,6 +23,7 @@ export type VisitorState = {
   chatDevice?: string;
   chatModel?: string;
   chatIssues?: string[];
+  chatMessage?: string;
   wantsLiveChat?: boolean;
   liveChatActive?: boolean;
 };
