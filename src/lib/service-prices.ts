@@ -104,9 +104,10 @@ export function invalidatePricesCache(): void {
 
 export async function saveServicePrices(prices: IssuePrices): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  const { error } = await (supabase as any)
     .from("settings")
-    .upsert({ key: "service_prices", value: prices }, { onConflict: "key" });
+    .upsert({ key: "service_prices", value: prices as unknown }, { onConflict: "key" });
+  if (error) throw new Error(error.message);
   _cache = prices;
 }
 
