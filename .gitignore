@@ -36,3 +36,4 @@ tsconfig.tsbuildinfo
 
 # Source export dump
 lovable-files-for-claude-code/
+.claude/
