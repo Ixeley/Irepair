@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
 
-const BUSINESS_EMAIL = "info@irepair.si";
+const BUSINESS_EMAIL = process.env.RESEND_TO ?? "info@irepair.si";
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
