@@ -21,28 +21,63 @@ function checkIsOpen(): boolean {
   return total >= 8 * 60 + 30 && total < 17 * 60;
 }
 
-const SLIDES = [
-  { type: "image" as const },
+type ImageSlide = { type: "image" };
+type ServiceSlide = {
+  type: "service";
+  accent: string;
+  bg: string;
+  icon: string;
+  label: string;
+  title: string;
+  items: { name: string; price: string }[];
+};
+type StatSlide = {
+  type: "stats";
+  stats: { value: string; label: string }[];
+  note: string;
+};
+
+type Slide = ImageSlide | ServiceSlide | StatSlide;
+
+const SLIDES: Slide[] = [
+  { type: "image" },
   {
-    type: "card" as const,
-    gradient: "from-blue-600 to-blue-800",
-    emoji: "📱",
+    type: "service",
+    accent: "#3b82f6",
+    bg: "linear-gradient(145deg, #1d4ed8 0%, #1e40af 60%, #1e3a8a 100%)",
+    icon: "📱",
+    label: "iPhone & iPad",
     title: "iPhone servis",
-    bullets: ["Zamenjava zaslona — od 89€", "Zamenjava baterije — od 59€", "Vodna škoda — od 79€", "Matična plošča — od 149€"],
+    items: [
+      { name: "Zamenjava zaslona", price: "od 89€" },
+      { name: "Zamenjava baterije", price: "od 59€" },
+      { name: "Vodna škoda", price: "od 79€" },
+      { name: "Matična plošča", price: "od 149€" },
+    ],
   },
   {
-    type: "card" as const,
-    gradient: "from-slate-700 to-slate-900",
-    emoji: "💻",
+    type: "service",
+    accent: "#64748b",
+    bg: "linear-gradient(145deg, #1e293b 0%, #0f172a 60%, #020617 100%)",
+    icon: "💻",
+    label: "MacBook & iMac",
     title: "MacBook servis",
-    bullets: ["Popravilo matične plošče", "Zamenjava SSD — od 79€", "Čiščenje & optimizacija", "Reševanje podatkov"],
+    items: [
+      { name: "Matična plošča", price: "od 149€" },
+      { name: "Zamenjava SSD", price: "od 79€" },
+      { name: "Reševanje podatkov", price: "od 99€" },
+      { name: "Čiščenje & servis", price: "od 49€" },
+    ],
   },
   {
-    type: "card" as const,
-    gradient: "from-emerald-600 to-teal-700",
-    emoji: "🛡️",
-    title: "Naša garancija",
-    bullets: ["3-mesečna garancija na popravilo", "Diagnostika vidnih napak brezplačna", "20+ let izkušenj", "10.000+ popravljenih naprav"],
+    type: "stats",
+    stats: [
+      { value: "20+", label: "let izkušenj" },
+      { value: "10.000+", label: "popravljenih naprav" },
+      { value: "3 mes.", label: "garancija" },
+      { value: "24h", label: "urgentno" },
+    ],
+    note: "Diagnostika vidnih napak brezplačna",
   },
 ];
 
@@ -70,24 +105,43 @@ function HeroSlideshow() {
           key={i}
           className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100 z-10" : "opacity-0 z-0"}`}
         >
-          {slide.type === "image" ? (
+          {slide.type === "image" && (
             <img
               src={heroImg}
               alt="Apple naprave — iPhone, MacBook, iPad"
               className="w-full h-full object-cover"
             />
-          ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${slide.gradient} flex flex-col items-center justify-center p-8 text-white`}>
-              <div className="text-5xl mb-4">{slide.emoji}</div>
-              <h3 className="text-2xl font-bold mb-5">{slide.title}</h3>
-              <ul className="space-y-2 text-sm text-white/90">
-                {slide.bullets.map(b => (
-                  <li key={b} className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/70 flex-shrink-0" />
-                    {b}
-                  </li>
+          )}
+          {slide.type === "service" && (
+            <div className="w-full h-full flex flex-col justify-center px-8 py-6 text-white" style={{ background: slide.bg }}>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-widest opacity-60">{slide.label}</div>
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-4xl">{slide.icon}</span>
+                <h3 className="text-2xl font-bold">{slide.title}</h3>
+              </div>
+              <div className="space-y-3">
+                {slide.items.map(item => (
+                  <div key={item.name} className="flex items-center justify-between bg-white/10 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+                    <span className="text-sm font-medium">{item.name}</span>
+                    <span className="text-sm font-bold opacity-90 ml-4 whitespace-nowrap">{item.price}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
+            </div>
+          )}
+          {slide.type === "stats" && (
+            <div className="w-full h-full flex flex-col items-center justify-center px-8 py-6 text-white" style={{ background: "linear-gradient(145deg, #065f46 0%, #064e3b 60%, #022c22 100%)" }}>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-widest opacity-60">iRepair Ljubljana</div>
+              <h3 className="text-2xl font-bold mb-6">Zakaj izbrati nas?</h3>
+              <div className="grid grid-cols-2 gap-3 w-full max-w-xs">
+                {slide.stats.map(s => (
+                  <div key={s.label} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 text-center">
+                    <div className="text-3xl font-extrabold leading-none">{s.value}</div>
+                    <div className="text-xs mt-1 opacity-70">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 text-xs text-white/60 text-center">{slide.note}</p>
             </div>
           )}
         </div>
