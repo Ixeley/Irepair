@@ -50,3 +50,11 @@ CREATE POLICY "product_images_update" ON storage.objects
 
 CREATE POLICY "product_images_delete" ON storage.objects
   FOR DELETE USING (bucket_id = 'product-images');
+
+-- 6. Settings table (stores service prices and other config as JSON)
+CREATE TABLE IF NOT EXISTS settings (
+  key   text PRIMARY KEY,
+  value jsonb NOT NULL
+);
+
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;

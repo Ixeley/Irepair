@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { fetchServicePrices, DEFAULT_PRICES, type IssuePrices, type Tier } from "@/lib/service-prices";
 
 // ---------------------------------------------------------------------------
 // Pricing (mirrors BookingForm)
@@ -64,7 +65,6 @@ const MAC_UPSELL_OPTIONS = [
   "Optimizacija performansa — od 69€",
 ];
 
-type Tier = "pro_max"|"pro"|"standard"|"mini_se"|"macbook_new"|"macbook_intel"|"ipad_pro"|"ipad_std"|"watch"|"other";
 const MODEL_TIER: Record<string, Tier> = {
   "iPhone 16 Pro Max":"pro_max","iPhone 15 Pro Max":"pro_max","iPhone 14 Pro Max":"pro_max","iPhone 13 Pro Max":"pro_max","iPhone 12 Pro Max":"pro_max",
   "iPhone 16 Pro":"pro","iPhone 16 Plus":"pro","iPhone 16":"pro","iPhone 15 Pro":"pro","iPhone 15 Plus":"pro","iPhone 15":"pro",
@@ -84,28 +84,17 @@ const MODEL_TIER: Record<string, Tier> = {
   "Apple Watch Ultra 2":"watch","Apple Watch Series 10":"watch","Apple Watch Series 9":"watch",
   "Apple Watch Series 8":"watch","Apple Watch SE (2. gen)":"watch","Apple Watch Series 7":"watch",
 };
-const ISSUE_PRICES: Record<string, Partial<Record<Tier, string>>> = {
-  "Poškodovan zaslon":   { pro_max:"169–189€", pro:"139–159€", standard:"109–129€", mini_se:"89–99€", ipad_pro:"179–229€", ipad_std:"119–149€", macbook_new:"299–399€", macbook_intel:"199–279€", watch:"99–149€" },
-  "Ne polni / Baterija": { pro_max:"89€", pro:"79€", standard:"69€", mini_se:"59€", ipad_pro:"99€", ipad_std:"79€", macbook_new:"129€", macbook_intel:"99€", watch:"79€" },
-  "Ne vključi se":       { pro_max:"od 149€", pro:"od 149€", standard:"od 129€", mini_se:"od 99€", ipad_pro:"od 149€", ipad_std:"od 119€", macbook_new:"od 199€", macbook_intel:"od 149€", watch:"od 99€" },
-  "Stik s tekočino":     { pro_max:"99–149€", pro:"89–129€", standard:"79–109€", mini_se:"79€", ipad_pro:"119–149€", ipad_std:"99–119€", macbook_new:"129–199€", macbook_intel:"99–149€", watch:"99€" },
-  "Počasen":             { pro_max:"od 79€", pro:"od 79€", standard:"od 69€", mini_se:"od 59€", ipad_pro:"od 79€", ipad_std:"od 69€", macbook_new:"od 99€", macbook_intel:"od 79€", watch:"od 69€" },
-  "Izguba podatkov":     { pro_max:"od 119€", pro:"od 109€", standard:"od 99€", mini_se:"od 99€", ipad_pro:"od 119€", ipad_std:"od 99€", macbook_new:"od 149€", macbook_intel:"od 119€", watch:"od 99€" },
-  "Tipkovnica ne deluje":{ macbook_new:"149–249€", macbook_intel:"99–179€", pro_max:"od 99€", pro:"od 99€", standard:"od 79€", mini_se:"od 79€" },
-  "Drugo":               { pro_max:"Po diagnostiki", pro:"Po diagnostiki", standard:"Po diagnostiki", mini_se:"Po diagnostiki", ipad_pro:"Po diagnostiki", ipad_std:"Po diagnostiki", macbook_new:"Po diagnostiki", macbook_intel:"Po diagnostiki", watch:"Po diagnostiki" },
-};
-
-function getPrice(model: string, issue: string): string {
+function getPriceCB(prices: IssuePrices, model: string, issue: string): string {
   const tier = MODEL_TIER[model];
   if (!tier) return "Po diagnostiki";
-  return ISSUE_PRICES[issue]?.[tier] ?? "Po diagnostiki";
+  return prices[issue]?.[tier] ?? "Po diagnostiki";
 }
 function extractMin(p: string): number { const m = p.match(/(\d+)/); return m ? parseInt(m[1]) : 0; }
-function calcCost(model: string, issues: string[], urgency: string, extra: string) {
+function calcCost(prices: IssuePrices, model: string, issues: string[], urgency: string, extra: string) {
   const lines: { label: string; price: string }[] = [{ label: "Diagnostika", price: "20€" }];
   let min = 20;
   for (const issue of issues) {
-    const p = getPrice(model, issue);
+    const p = getPriceCB(prices, model, issue);
     lines.push({ label: issue, price: p });
     min += extractMin(p);
   }
@@ -274,6 +263,7 @@ const GREETING: Msg = {
 // ---------------------------------------------------------------------------
 
 export function ChatBubble() {
+  const [prices, setPrices] = useState<IssuePrices>(DEFAULT_PRICES);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("idle");
   const [diag, setDiag] = useState<Diag>(EMPTY_DIAG);
@@ -281,6 +271,8 @@ export function ChatBubble() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { fetchServicePrices().then(setPrices); }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -306,7 +298,7 @@ export function ChatBubble() {
   };
 
   const askName = (d: Diag) => {
-    const { lines, total } = calcCost(d.model, d.issues, d.urgency, d.extra);
+    const { lines, total } = calcCost(prices, d.model, d.issues, d.urgency, d.extra);
     const priceLines = lines.map(l => `  • ${l.label}: ${l.price}`).join("\n");
     setStep("name");
     push({ role: "bot", text: `💰 Ocena stroškov za ${d.model || d.device}:\n\n${priceLines}\n${"─".repeat(26)}\n  Skupaj: ${total}\n\n(Diagnostika 20€ se odšteje od popravila.)\n\nZa pošiljanje povpraševanja potrebujem vaše podatke.\n\nKako vam je ime?` });
@@ -492,7 +484,7 @@ export function ChatBubble() {
 
   const showConfirm = (d: Diag) => {
     const urgLabel = URGENCIES.find(u => u.v === d.urgency)?.l ?? d.urgency;
-    const { total } = calcCost(d.model, d.issues, d.urgency, d.extra);
+    const { total } = calcCost(prices, d.model, d.issues, d.urgency, d.extra);
     const lines = [
       `📱 ${d.device}${d.model ? ` — ${d.model}` : ""}`,
       `🔧 ${d.issues.join(", ")}`,
@@ -511,7 +503,7 @@ export function ChatBubble() {
   const handleSubmit = async () => {
     setSending(true);
     setStep("sending");
-    const { total } = calcCost(diag.model, diag.issues, diag.urgency, diag.extra);
+    const { total } = calcCost(prices, diag.model, diag.issues, diag.urgency, diag.extra);
     const description = [diag.extra ? `Dodatna storitev: ${diag.extra}.` : "", `Ocena: ${total}. Povpraševanje oddano prek klepeta.`].filter(Boolean).join(" ");
     try {
       const res = await fetch("/.netlify/functions/send-booking", {

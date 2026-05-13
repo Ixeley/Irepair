@@ -7,6 +7,7 @@ import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle,
 import type { VisitorState } from "@/lib/visitor-presence";
 import { VISITOR_CHANNEL, markAsAdmin } from "@/lib/visitor-presence";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchServicePrices, saveServicePrices, invalidatePricesCache, DEFAULT_PRICES, TIERS, type IssuePrices } from "@/lib/service-prices";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminPage,
@@ -838,6 +839,91 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Service price editor
+// ---------------------------------------------------------------------------
+
+const ISSUE_LABELS = Object.keys(DEFAULT_PRICES);
+
+function ServicePricesEditor() {
+  const [prices, setPrices] = useState<IssuePrices>(DEFAULT_PRICES);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchServicePrices().then(p => { setPrices(p); setLoading(false); });
+  }, []);
+
+  const update = (issue: string, tier: string, val: string) => {
+    setPrices(prev => ({
+      ...prev,
+      [issue]: { ...prev[issue], [tier]: val },
+    }));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await saveServicePrices(prices);
+      invalidatePricesCache();
+      toast.success("Cene so shranjene");
+    } catch {
+      toast.error("Napaka pri shranjevanju");
+    }
+    setSaving(false);
+  };
+
+  const reset = () => { setPrices(DEFAULT_PRICES); toast("Cene so resetirane (še niso shranjene)"); };
+
+  if (loading) return <div className="mb-8 text-sm text-muted-foreground">Nalaganje cen…</div>;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-lg">Cene storitev</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={reset}>Ponastavi</Button>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
+            Shrani
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border">
+        <table className="text-xs w-full">
+          <thead>
+            <tr className="bg-muted/50">
+              <th className="text-left px-3 py-2 font-medium w-36 min-w-36">Storitev</th>
+              {TIERS.map(t => (
+                <th key={t.key} className="px-2 py-2 font-medium text-center min-w-24">{t.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ISSUE_LABELS.map((issue, i) => (
+              <tr key={issue} className={i % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                <td className="px-3 py-1.5 font-medium text-foreground">{issue}</td>
+                {TIERS.map(t => (
+                  <td key={t.key} className="px-1.5 py-1">
+                    <input
+                      value={prices[issue]?.[t.key] ?? ""}
+                      onChange={e => update(issue, t.key, e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary text-center"
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground mt-2">Pusti prazno za "Po diagnostiki". Cene se takoj odrazijo v booking formi in klepetu.</p>
+    </div>
+  );
+}
+
 function LiveVisitors() {
   const [visitors, setVisitors] = useState<Map<string, VisitorState>>(new Map());
 
@@ -981,6 +1067,7 @@ function AdminPage() {
           </div>
         )}
         <LiveVisitors />
+        <ServicePricesEditor />
 
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
