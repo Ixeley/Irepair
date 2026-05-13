@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type VisitorState = {
   sessionId: string;
@@ -44,23 +43,24 @@ export function isAdmin(): boolean {
   try { return localStorage.getItem("_isAdmin") === "1"; } catch { return false; }
 }
 
-let _channel: RealtimeChannel | null = null;
-let _state: VisitorState | null = null;
-let _heartbeat: ReturnType<typeof setInterval> | null = null;
-
-async function send(event: "visitor_update" | "visitor_leave") {
-  if (!_channel || !_state) return;
-  _state.lastSeen = new Date().toISOString();
-  try {
-    await _channel.send({ type: "broadcast", event, payload: { ..._state } });
-  } catch { /* ignore */ }
+// Current active tracking instance — replaced atomically on each init.
+interface Tracking {
+  state: VisitorState;
+  send: (event: "visitor_update" | "visitor_leave") => Promise<void>;
 }
+
+let _tracking: Tracking | null = null;
+let _cleanupFn: (() => void) | null = null;
 
 export function initVisitorTracking(page: string): () => void {
   if (isAdmin()) return () => {};
 
+  // Always tear down any previous tracking before starting fresh.
+  // This prevents leaked channels when React remounts or StrictMode fires.
+  if (_cleanupFn) { _cleanupFn(); _cleanupFn = null; }
+
   const sessionId = getSessionId();
-  _state = {
+  const state: VisitorState = {
     sessionId,
     page,
     activity: "browsing",
@@ -68,33 +68,49 @@ export function initVisitorTracking(page: string): () => void {
     lastSeen: new Date().toISOString(),
   };
 
-  _channel = supabase.channel(VISITOR_CHANNEL);
+  const channel = supabase.channel(VISITOR_CHANNEL);
+  let heartbeat: ReturnType<typeof setInterval> | null = null;
 
-  _channel.on("broadcast", { event: "request_state" }, () => {
+  // send() is a closure over the LOCAL channel and state — no module-level
+  // variable lookups, so stale channels can never broadcast current state.
+  const send = async (event: "visitor_update" | "visitor_leave") => {
+    state.lastSeen = new Date().toISOString();
+    try {
+      await channel.send({ type: "broadcast", event, payload: { ...state } });
+    } catch { /* ignore */ }
+  };
+
+  _tracking = { state, send };
+
+  channel.on("broadcast", { event: "request_state" }, () => {
     send("visitor_update");
   });
 
-  _channel.subscribe(async (status) => {
+  channel.subscribe(async (status) => {
     if (status === "SUBSCRIBED") {
+      // Clear before starting — prevents interval accumulation on reconnect.
+      if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
       await send("visitor_update");
-      _heartbeat = setInterval(() => send("visitor_update"), 15000);
+      heartbeat = setInterval(() => send("visitor_update"), 15000);
     }
   });
 
   const onUnload = () => send("visitor_leave");
   window.addEventListener("beforeunload", onUnload);
 
-  return () => {
+  _cleanupFn = () => {
     window.removeEventListener("beforeunload", onUnload);
-    if (_heartbeat) { clearInterval(_heartbeat); _heartbeat = null; }
+    if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
     send("visitor_leave");
-    if (_channel) { supabase.removeChannel(_channel); _channel = null; }
-    _state = null;
+    supabase.removeChannel(channel);
+    if (_tracking?.state === state) _tracking = null;
   };
+
+  return _cleanupFn;
 }
 
 export async function updateVisitorState(update: Partial<VisitorState>): Promise<void> {
-  if (!_state) return;
-  _state = { ..._state, ...update };
-  await send("visitor_update");
+  if (!_tracking) return;
+  Object.assign(_tracking.state, update);
+  await _tracking.send("visitor_update");
 }
