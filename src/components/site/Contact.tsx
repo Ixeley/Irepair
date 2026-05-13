@@ -9,12 +9,13 @@ export function Contact() {
           <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Pridite mimo ali nas pokličite</h2>
         </div>
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="rounded-3xl overflow-hidden shadow-card aspect-video lg:aspect-auto min-h-[360px]">
+          <div className="rounded-3xl overflow-hidden shadow-card aspect-video lg:aspect-auto lg:min-h-[260px]">
             <iframe
-              title="iRepair Lokacija"
+              title="iRepair Lokacija — Koprska 94, Ljubljana"
               src="https://www.google.com/maps?q=Koprska+94,+Ljubljana&output=embed"
               className="w-full h-full border-0"
               loading="lazy"
+              allowFullScreen
             />
           </div>
           <div className="bg-card rounded-3xl p-8 shadow-soft space-y-5">
