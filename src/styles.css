@@ -106,9 +106,16 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* Prevent horizontal overflow on Android */
+    overflow-x: hidden;
   }
   h1, h2, h3, h4 { letter-spacing: -0.02em; }
+  /* Safe-area bottom helper — used by fixed elements */
+  :root {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 @layer utilities {

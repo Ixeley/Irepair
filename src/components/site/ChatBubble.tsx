@@ -279,6 +279,7 @@ type Step =
   | "urgency" | "upsell" | "upsell_pick"
   | "name" | "phone" | "email"
   | "confirm" | "sending" | "done"
+  | "pre_live_device" | "pre_live_issue"
   | "live_chat_waiting" | "live_chat";
 
 interface Diag {
@@ -651,6 +652,27 @@ export function ChatBubble() {
       showConfirm(updated);
       return;
     }
+
+    // ── Pre-live: device ──────────────────────────────────────────────────
+    if (step === "pre_live_device") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, device: val };
+      setDiag(updated);
+      updateVisitorState({ chatDevice: val });
+      setStep("pre_live_issue");
+      push({ role: "bot", text: "Kakšna je vaša težava?", issueButtons: Object.keys(prices) });
+      return;
+    }
+
+    // ── Pre-live: issue ───────────────────────────────────────────────────
+    if (step === "pre_live_issue") {
+      push({ role: "user", text: val });
+      const updated = { ...diag, issues: [val] };
+      setDiag(updated);
+      updateVisitorState({ chatIssues: [val] });
+      doRequestLiveChat(updated);
+      return;
+    }
   };
 
   const showConfirm = (d: Diag) => {
@@ -711,7 +733,7 @@ export function ChatBubble() {
     handleAction(text);
   };
 
-  const isTextStep = ["idle","name","phone","email","live_chat","live_chat_waiting"].includes(step);
+  const isTextStep = ["idle","name","phone","email","live_chat","live_chat_waiting","pre_live_device","pre_live_issue"].includes(step);
 
   const placeholder =
     step === "idle" ? "Opišite težavo, npr. 'počen zaslon na 16 Pro'..." :
@@ -722,13 +744,13 @@ export function ChatBubble() {
     step === "live_chat_waiting" ? "Opišite težavo medtem ko čakate..." :
     "Izberite možnost zgoraj...";
 
-  const requestLiveChat = () => {
-    if (liveChatRef.current) return; // already connected or waiting
-    updateVisitorState({ wantsLiveChat: true });
+  // Actually open the live chat channel (called after pre-info is collected)
+  const doRequestLiveChat = (d: Diag = diag) => {
+    if (liveChatRef.current) return;
+    updateVisitorState({ wantsLiveChat: true, chatDevice: d.device || undefined, chatModel: d.model || undefined, chatIssues: d.issues.length ? d.issues : undefined });
     setStep("live_chat_waiting");
-    push({ role: "bot", text: "🔔 Sporočilo je poslano zaposlenemu.\n\nPočakajte, priključil se bo v kratkem. Medtem mi lahko opišete težavo." });
+    push({ role: "bot", text: "🔔 Sporočilo je poslano zaposlenemu.\n\nPočakajte, priključil se bo v kratkem." });
 
-    // Subscribe now so we receive chat_accept the moment admin connects
     const sid = getSessionId();
     const ch = supabase.channel(liveChatChannel(sid));
 
@@ -752,13 +774,31 @@ export function ChatBubble() {
     ch.on("broadcast", { event: "chat_handback" }, () => {
       updateVisitorState({ liveChatActive: false, wantsLiveChat: false, chatActive: true });
       if (liveChatRef.current) { supabase.removeChannel(liveChatRef.current); liveChatRef.current = null; }
-      push({ role: "bot", text: "Zaposleni vas je predal nazaj pomočniku. 🤖\n\nKatera naprava vas skrbi?" });
+      push({ role: "bot", text: "Zaposleni vas je predal nazaj pomočniku. 🤖" });
       setStep("device_select");
-      push({ role: "bot", text: "Izberite napravo:", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+      push({ role: "bot", text: "Katera naprava vas skrbi?", buttons: DEVICES.map(d => ({ label: d, value: d })) });
     });
 
     ch.subscribe();
     liveChatRef.current = ch;
+  };
+
+  // Entry point — collect device+issue first if not known, then connect
+  const requestLiveChat = () => {
+    if (liveChatRef.current) return;
+    if (!diag.device) {
+      push({ role: "bot", text: "Preden pokličem zaposlenega — povejte mi za katero napravo gre:" });
+      setStep("pre_live_device");
+      push({ role: "bot", text: "", buttons: DEVICES.map(d => ({ label: d, value: d })) });
+      return;
+    }
+    if (!diag.issues.length) {
+      push({ role: "bot", text: "Kakšna je vaša težava?" });
+      setStep("pre_live_issue");
+      push({ role: "bot", text: "", issueButtons: Object.keys(prices) });
+      return;
+    }
+    doRequestLiveChat();
   };
 
   const resetChat = () => {
@@ -775,25 +815,40 @@ export function ChatBubble() {
   return (
     <>
       {!open && (
-        <button onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-float" aria-label="Odpri klepet">
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed z-50 h-14 w-14 rounded-full gradient-primary text-primary-foreground shadow-glow flex items-center justify-center hover:scale-110 transition-transform animate-float"
+          style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))", right: "1.5rem" }}
+          aria-label="Odpri klepet"
+        >
           <MessageCircle className="h-6 w-6" />
           <span className="absolute top-0 right-0 h-3 w-3 rounded-full bg-success ring-2 ring-background" />
         </button>
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[calc(100vw-3rem)] max-w-sm bg-card rounded-3xl shadow-card overflow-hidden animate-fade-up flex flex-col" style={{ maxHeight: "calc(100vh - 3rem)" }}>
+        <div
+          className="fixed z-50 bg-card rounded-3xl shadow-card overflow-hidden animate-fade-up flex flex-col"
+          style={{
+            bottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+            right: "1rem",
+            left: "1rem",
+            maxWidth: "24rem",
+            marginLeft: "auto",
+            maxHeight: "calc(100dvh - 5rem)",
+          }}
+        >
           {/* Header */}
           <div className="gradient-primary text-primary-foreground p-4 flex items-center justify-between flex-shrink-0">
             <div>
               <div className="font-semibold">iRepair pomočnik</div>
               <div className="text-xs opacity-80 flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Ocena stroškov brezplačna</div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Zapri" className="hover:opacity-80"><X className="h-5 w-5" /></button>
+            <button onClick={() => setOpen(false)} aria-label="Zapri" className="hover:opacity-80 p-1"><X className="h-5 w-5" /></button>
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 bg-secondary/30 space-y-3 text-sm" style={{ minHeight: "300px", maxHeight: "420px" }}>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 bg-secondary/30 space-y-3 text-sm" style={{ minHeight: "200px", maxHeight: "min(380px, 50dvh)" }}>
             {messages.map((m, i) => {
               const isLast = i === messages.length - 1;
               return (
