@@ -3,9 +3,9 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle, Users } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Loader2, ImageIcon, X, Check, AlertTriangle, Users, MessageSquare, Send, PhoneCall } from "lucide-react";
 import type { VisitorState } from "@/lib/visitor-presence";
-import { VISITOR_CHANNEL, markAsAdmin } from "@/lib/visitor-presence";
+import { VISITOR_CHANNEL, markAsAdmin, liveChatChannel } from "@/lib/visitor-presence";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchServicePrices, saveServicePrices, invalidatePricesCache, DEFAULT_PRICES, TIERS, type IssuePrices } from "@/lib/service-prices";
 
@@ -755,10 +755,38 @@ const URGENCY_LABELS: Record<string, string> = {
   standard: "Standardno", fast: "Hitra obdelava", urgent: "URGENTNO 24h",
 };
 
+interface ChatMsg { from: "admin" | "user"; text: string }
+
 function VisitorCard({ visitor }: { visitor: VisitorState }) {
   const [expanded, setExpanded] = useState(false);
+  const [chatConnected, setChatConnected] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const chatChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
   const isBooking = visitor.activity === "booking";
   const isShop = visitor.activity === "shop";
+
+  // Auto-expand when visitor requests live chat
+  useEffect(() => {
+    if (visitor.wantsLiveChat && !chatConnected) setExpanded(true);
+  }, [visitor.wantsLiveChat, chatConnected]);
+
+  // Auto-scroll chat messages
+  useEffect(() => {
+    chatScrollRef.current?.scrollTo({ top: chatScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (chatChannelRef.current) {
+        supabase.removeChannel(chatChannelRef.current);
+        chatChannelRef.current = null;
+      }
+    };
+  }, []);
 
   const elapsed = useMemo(() => {
     const mins = Math.floor((Date.now() - new Date(visitor.joinedAt).getTime()) / 60000);
@@ -767,21 +795,79 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
   }, [visitor.joinedAt]);
 
   const pageLabel = visitor.page === "shop" ? "Shop" : "Servis";
-  const activityLabel = isBooking
-    ? `Izpolnjuje obrazec · Korak ${visitor.bookingStep ?? 1}/6`
+  const activityLabel = chatConnected ? "Živi klepet 💬"
+    : visitor.wantsLiveChat ? "Čaka na zaposlenega ⚡"
+    : visitor.liveChatActive ? "V živem klepetu"
+    : visitor.chatActive ? `Chatbot${visitor.chatDevice ? ` · ${visitor.chatDevice}` : ""}${visitor.chatModel ? ` ${visitor.chatModel}` : ""}`
+    : isBooking ? `Izpolnjuje obrazec · Korak ${visitor.bookingStep ?? 1}/6`
     : isShop
     ? visitor.shopInquiry ? "Povpraševanje za nakup"
       : visitor.shopTab === "sell" ? "Prodaja naprave"
       : "Brska po shopu"
     : "Brska po strani";
 
-  const dotColor = isBooking ? "bg-primary animate-pulse"
+  const dotColor = chatConnected || visitor.wantsLiveChat ? "bg-purple-500 animate-pulse"
+    : isBooking ? "bg-primary animate-pulse"
     : isShop ? "bg-amber-500 animate-pulse"
+    : visitor.chatActive ? "bg-violet-400 animate-pulse"
     : "bg-emerald-500";
 
-  const border = isBooking ? "border-primary/30 bg-primary/5"
+  const border = chatConnected ? "border-purple-300 bg-purple-50/50"
+    : visitor.wantsLiveChat ? "border-purple-200 bg-purple-50/30"
+    : isBooking ? "border-primary/30 bg-primary/5"
     : isShop ? "border-amber-200 bg-amber-50/50"
     : "border-border bg-card";
+
+  const connectChat = async () => {
+    const sid = visitor.sessionId;
+    // Single channel for everything — visitor is already subscribed to this channel
+    const ch = supabase.channel(liveChatChannel(sid));
+
+    ch.on("broadcast", { event: "chat_message" }, ({ payload }) => {
+      if (payload.from === "user") {
+        setChatMessages(prev => [...prev, { from: "user", text: payload.text }]);
+      }
+    });
+
+    ch.subscribe(async (status) => {
+      if (status !== "SUBSCRIBED") return;
+      // Send accept — visitor receives it on the same channel they're already on
+      await ch.send({ type: "broadcast", event: "chat_accept", payload: {} });
+      setChatConnected(true);
+    });
+
+    chatChannelRef.current = ch;
+  };
+
+  const sendAdminMessage = async () => {
+    const text = chatInput.trim();
+    if (!text || !chatChannelRef.current) return;
+    setChatInput("");
+    setChatMessages(prev => [...prev, { from: "admin", text }]);
+    await chatChannelRef.current.send({ type: "broadcast", event: "chat_message", payload: { from: "admin", text } });
+  };
+
+  const handbackToBot = async () => {
+    if (chatChannelRef.current) {
+      await chatChannelRef.current.send({ type: "broadcast", event: "chat_handback", payload: {} });
+      supabase.removeChannel(chatChannelRef.current);
+      chatChannelRef.current = null;
+    }
+    setChatConnected(false);
+    setChatMessages([]);
+    setChatInput("");
+  };
+
+  const endChat = async () => {
+    if (chatChannelRef.current) {
+      await chatChannelRef.current.send({ type: "broadcast", event: "chat_end", payload: {} });
+      supabase.removeChannel(chatChannelRef.current);
+      chatChannelRef.current = null;
+    }
+    setChatConnected(false);
+    setChatMessages([]);
+    setChatInput("");
+  };
 
   return (
     <div className={`rounded-2xl border ${border}`}>
@@ -790,13 +876,24 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
         onClick={() => setExpanded(e => !e)}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer select-none"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${dotColor}`} />
           <span className="text-xs font-mono text-muted-foreground">{visitor.sessionId}</span>
+          {visitor.browserDevice && (
+            <>
+              <span className="text-xs text-muted-foreground">·</span>
+              <span className="text-xs text-muted-foreground">{visitor.browserDevice}</span>
+            </>
+          )}
           <span className="text-xs text-muted-foreground">·</span>
           <span className="text-xs font-semibold">{pageLabel}</span>
           <span className="text-xs text-muted-foreground">·</span>
           <span className="text-xs text-muted-foreground truncate">{activityLabel}</span>
+          {visitor.wantsLiveChat && !chatConnected && (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 bg-purple-100 border border-purple-200 rounded-full px-2 py-0.5 animate-pulse">
+              <PhoneCall className="h-3 w-3" /> Želi klepet
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 text-xs text-muted-foreground">
           <span>{elapsed}</span>
@@ -805,7 +902,95 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4 border-t border-border/40 pt-3 text-xs space-y-1.5">
+        <div className="px-4 pb-4 border-t border-border/40 pt-3 text-xs space-y-3">
+
+          {/* Live chat request banner */}
+          {visitor.wantsLiveChat && !chatConnected && (
+            <div className="flex items-center justify-between gap-3 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2.5">
+              <div className="flex items-center gap-2 text-purple-800 font-medium">
+                <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                Obiskovalec želi pogovor z zaposlenim
+              </div>
+              <button
+                onClick={connectChat}
+                className="flex-shrink-0 rounded-full bg-purple-600 text-white px-3 py-1 text-xs font-semibold hover:bg-purple-700 transition-colors"
+              >
+                Poveži
+              </button>
+            </div>
+          )}
+
+          {/* Live chat UI */}
+          {chatConnected && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-purple-700 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Živi klepet
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handbackToBot}
+                    className="text-xs text-violet-600 hover:text-violet-700 font-medium hover:underline"
+                    title="Preda pogovor nazaj botu — bot vodi uporabnika naprej"
+                  >
+                    🤖 Preda botu
+                  </button>
+                  <button
+                    onClick={endChat}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium hover:underline"
+                  >
+                    Končaj klepet
+                  </button>
+                </div>
+              </div>
+              <div ref={chatScrollRef} className="bg-secondary/40 rounded-xl p-3 space-y-2 max-h-56 overflow-y-auto">
+                {chatMessages.length === 0 && (
+                  <p className="text-muted-foreground text-center py-2">Počakajte na sporočilo…</p>
+                )}
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`flex ${m.from === "admin" ? "justify-end" : "justify-start"}`}>
+                    <span className={`px-3 py-1.5 rounded-xl max-w-[80%] whitespace-pre-wrap ${m.from === "admin" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                      {m.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendAdminMessage()}
+                  placeholder="Napišite sporočilo..."
+                  className="flex-1 rounded-full bg-background border border-border px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  onClick={sendAdminMessage}
+                  disabled={!chatInput.trim()}
+                  className="rounded-full bg-primary text-primary-foreground p-2 disabled:opacity-40 hover:bg-primary/90 transition-colors"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Chat bot activity */}
+          {visitor.chatActive && !chatConnected && (
+            <div className="space-y-1">
+              <span className="inline-flex items-center gap-1 font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2.5 py-0.5">
+                <MessageSquare className="h-3 w-3" /> Chatbot aktiven
+              </span>
+              {(visitor.chatDevice || visitor.chatModel || visitor.chatIssues?.length) && (
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
+                  {visitor.chatDevice && <div><span className="text-muted-foreground">Naprava: </span><span className="font-medium">{visitor.chatDevice}</span></div>}
+                  {visitor.chatModel  && <div><span className="text-muted-foreground">Model: </span><span className="font-medium">{visitor.chatModel}</span></div>}
+                  {visitor.chatIssues?.length ? <div className="col-span-2"><span className="text-muted-foreground">Težave: </span><span className="font-medium">{visitor.chatIssues.join(", ")}</span></div> : null}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Booking details */}
           {isBooking && (
             <>
               <span className="inline-flex items-center font-semibold text-primary bg-primary/10 rounded-full px-2.5 py-0.5">
@@ -822,6 +1007,8 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
               </div>
             </>
           )}
+
+          {/* Shop details */}
           {isShop && (
             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
               <div><span className="text-muted-foreground">Tab: </span><span className="font-medium">{visitor.shopTab === "sell" ? "Prodaja" : "Kupovanje"}</span></div>
@@ -830,7 +1017,8 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
               {visitor.shopInquiry && <div className="col-span-2"><span className="text-muted-foreground">Povpraševanje: </span><span className="font-medium text-amber-700">{visitor.shopInquiry}</span></div>}
             </div>
           )}
-          {!isBooking && !isShop && (
+
+          {!isBooking && !isShop && !visitor.chatActive && !chatConnected && !visitor.wantsLiveChat && (
             <p className="text-muted-foreground">Brska po {pageLabel === "Shop" ? "shopu" : "servisni strani"}</p>
           )}
         </div>
