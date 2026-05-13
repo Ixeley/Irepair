@@ -10,16 +10,7 @@ import { fetchServicePrices, DEFAULT_PRICES, type IssuePrices, type Tier } from 
 
 const DEVICES = ["iPhone", "iPad", "MacBook", "iMac", "Apple Watch", "MagSafe", "Drugo"];
 
-const ALL_ISSUES = [
-  "Poškodovan zaslon",
-  "Ne polni / Baterija",
-  "Ne vključi se",
-  "Stik s tekočino",
-  "Počasen",
-  "Izguba podatkov",
-  "Tipkovnica ne deluje",
-  "Drugo",
-];
+// Issues are loaded dynamically from service prices (see prices state in ChatBubble)
 
 const URGENCIES = [
   { v: "standard", l: "Standardno (2–5 dni)" },
@@ -354,7 +345,7 @@ export function ChatBubble() {
 
   const push = (...msgs: Msg[]) => setMessages(prev => [...prev, ...msgs]);
 
-  const remainingIssues = (current: string[]) => ALL_ISSUES.filter(i => !current.includes(i));
+  const remainingIssues = (current: string[]) => Object.keys(prices).filter(i => !current.includes(i));
   const isMac = (device: string) => device === "MacBook" || device === "iMac";
 
   const afterUrgency = (d: Diag) => {
@@ -404,7 +395,7 @@ export function ChatBubble() {
         setDiag(updated);
         if (model) {
           setStep("issue_first");
-          push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: ALL_ISSUES });
+          push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: Object.keys(prices) });
         } else {
           setStep("model_select");
           push({ role: "bot", text: `Kateri model ${device} imate?`, buttons: (DEVICE_MODELS[device] ?? []).map(m => ({ label: m, value: m })) });
@@ -464,7 +455,7 @@ export function ChatBubble() {
         showQuickPrice(newDiag);
       } else if (device && model) {
         setStep("issue_first");
-        push({ role: "bot", text: `Razumem — ${model}. Katera je vaša glavna težava?`, issueButtons: ALL_ISSUES });
+        push({ role: "bot", text: `Razumem — ${model}. Katera je vaša glavna težava?`, issueButtons: Object.keys(prices) });
       } else if (device && !model && DEVICE_MODELS[device]) {
         setStep("model_select");
         push({ role: "bot", text: `Kateri model ${device} imate?`, buttons: DEVICE_MODELS[device].map(m => ({ label: m, value: m })) });
@@ -509,7 +500,7 @@ export function ChatBubble() {
             showQuickPrice(updated);
           } else {
             setStep("issue_first");
-            push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: ALL_ISSUES });
+            push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: Object.keys(prices) });
           }
         } else {
           setStep("model_select");
@@ -542,7 +533,7 @@ export function ChatBubble() {
         showQuickPrice(updated);
       } else {
         setStep("issue_first");
-        push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: ALL_ISSUES });
+        push({ role: "bot", text: "Katera je vaša glavna težava?", issueButtons: Object.keys(prices) });
       }
       return;
     }
