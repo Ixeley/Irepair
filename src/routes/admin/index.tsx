@@ -906,17 +906,26 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
 
           {/* Live chat request banner */}
           {visitor.wantsLiveChat && !chatConnected && (
-            <div className="flex items-center justify-between gap-3 bg-purple-50 border border-purple-200 rounded-xl px-3 py-2.5">
-              <div className="flex items-center gap-2 text-purple-800 font-medium">
-                <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                Obiskovalec želi pogovor z zaposlenim
+            <div className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-2.5 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-purple-800 font-medium text-xs">
+                  <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                  Obiskovalec želi pogovor z zaposlenim
+                </div>
+                <button
+                  onClick={connectChat}
+                  className="flex-shrink-0 rounded-full bg-purple-600 text-white px-3 py-1 text-xs font-semibold hover:bg-purple-700 transition-colors"
+                >
+                  Poveži
+                </button>
               </div>
-              <button
-                onClick={connectChat}
-                className="flex-shrink-0 rounded-full bg-purple-600 text-white px-3 py-1 text-xs font-semibold hover:bg-purple-700 transition-colors"
-              >
-                Poveži
-              </button>
+              {(visitor.chatMessage || visitor.chatDevice || visitor.chatIssues?.length) && (
+                <div className="text-xs space-y-0.5 border-t border-purple-200 pt-2">
+                  {visitor.chatMessage && <p><span className="text-purple-600">Sporočilo: </span><span className="font-medium italic">"{visitor.chatMessage}"</span></p>}
+                  {visitor.chatDevice && <p><span className="text-purple-600">Naprava: </span><span className="font-medium">{visitor.chatDevice}{visitor.chatModel ? ` — ${visitor.chatModel}` : ""}</span></p>}
+                  {visitor.chatIssues?.length ? <p><span className="text-purple-600">Težave: </span><span className="font-medium">{visitor.chatIssues.join(", ")}</span></p> : null}
+                </div>
+              )}
             </div>
           )}
 
@@ -980,6 +989,12 @@ function VisitorCard({ visitor }: { visitor: VisitorState }) {
               <span className="inline-flex items-center gap-1 font-semibold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2.5 py-0.5">
                 <MessageSquare className="h-3 w-3" /> Chatbot aktiven
               </span>
+              {visitor.chatMessage && (
+                <div className="mt-1 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">
+                  <span className="text-muted-foreground">Sporočilo: </span>
+                  <span className="font-medium italic">"{visitor.chatMessage}"</span>
+                </div>
+              )}
               {(visitor.chatDevice || visitor.chatModel || visitor.chatIssues?.length) && (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
                   {visitor.chatDevice && <div><span className="text-muted-foreground">Naprava: </span><span className="font-medium">{visitor.chatDevice}</span></div>}
