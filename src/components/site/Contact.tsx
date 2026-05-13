@@ -11,10 +11,11 @@ export function Contact() {
         <div className="grid lg:grid-cols-2 gap-8">
           <div className="rounded-3xl overflow-hidden shadow-card aspect-video lg:aspect-auto min-h-[360px]">
             <iframe
-              title="iRepair Lokacija"
-              src="https://www.google.com/maps?q=Koprska+94,+Ljubljana&output=embed"
+              title="iRepair Lokacija — Koprska 94, Ljubljana"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=14.5018%2C46.0365%2C14.5118%2C46.0425&layer=mapnik&marker=46.0394%2C14.5068"
               className="w-full h-full border-0"
               loading="lazy"
+              allowFullScreen
             />
           </div>
           <div className="bg-card rounded-3xl p-8 shadow-soft space-y-5">
