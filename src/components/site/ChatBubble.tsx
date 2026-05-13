@@ -447,6 +447,9 @@ export function ChatBubble() {
         return;
       }
 
+      // Save raw user message so admin can see what was typed
+      updateVisitorState({ chatActive: true, chatMessage: userText });
+
       // FAQ check first
       const faqAnswer = matchFaq(userText);
       if (faqAnswer) {
@@ -895,10 +898,13 @@ export function ChatBubble() {
           </div>
 
           {/* Live chat request button */}
-          {!["done","sending","live_chat","live_chat_waiting"].includes(step) && (
-            <div className="px-3 pb-2 flex-shrink-0 flex justify-center">
-              <button onClick={requestLiveChat} className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline flex items-center gap-1">
-                <MessageCircle className="h-3 w-3" /> Pogovor z zaposlenim
+          {!["done","sending","live_chat","live_chat_waiting","pre_live_device","pre_live_issue"].includes(step) && (
+            <div className="px-3 pb-2 flex-shrink-0">
+              <button
+                onClick={requestLiveChat}
+                className="w-full flex items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary hover:text-primary-foreground text-primary text-xs font-medium py-2 transition-colors"
+              >
+                <MessageCircle className="h-3.5 w-3.5" /> Pogovor z zaposlenim
               </button>
             </div>
           )}
