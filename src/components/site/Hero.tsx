@@ -21,181 +21,309 @@ function checkIsOpen(): boolean {
   return total >= 8 * 60 + 30 && total < 17 * 60;
 }
 
-function IPhoneSVG() {
-  return (
-    <svg viewBox="0 0 120 240" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
-      <rect x="10" y="4" width="100" height="232" rx="22" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.35" strokeWidth="1.5" />
-      <rect x="16" y="18" width="88" height="204" rx="14" fill="white" fillOpacity="0.06" />
-      <rect x="44" y="10" width="32" height="6" rx="3" fill="white" fillOpacity="0.3" />
-      <circle cx="60" cy="13" r="2" fill="white" fillOpacity="0.5" />
-      <rect x="20" y="22" width="80" height="196" rx="10" fill="white" fillOpacity="0.04" stroke="white" strokeOpacity="0.1" strokeWidth="0.5" />
-      <rect x="22" y="24" width="76" height="192" rx="9" fill="white" fillOpacity="0.07" />
-    </svg>
-  );
-}
-
-function MacBookSVG() {
-  return (
-    <svg viewBox="0 0 220 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
-      <rect x="20" y="8" width="180" height="120" rx="10" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.35" strokeWidth="1.5" />
-      <rect x="28" y="16" width="164" height="104" rx="6" fill="white" fillOpacity="0.06" stroke="white" strokeOpacity="0.1" strokeWidth="0.5" />
-      <rect x="30" y="18" width="160" height="100" rx="5" fill="white" fillOpacity="0.07" />
-      <ellipse cx="110" cy="11" rx="6" ry="2.5" fill="white" fillOpacity="0.2" />
-      <path d="M4 132 C4 130 6 128 8 128 L212 128 C214 128 216 130 216 132 L220 148 C220 150 218 152 216 152 L4 152 C2 152 0 150 0 148 Z" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.3" strokeWidth="1" />
-      <rect x="88" y="132" width="44" height="8" rx="4" fill="white" fillOpacity="0.2" />
-    </svg>
-  );
-}
-
-function IPadSVG() {
-  return (
-    <svg viewBox="0 0 140 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
-      <rect x="8" y="6" width="124" height="188" rx="18" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.35" strokeWidth="1.5" />
-      <rect x="16" y="16" width="108" height="168" rx="10" fill="white" fillOpacity="0.06" stroke="white" strokeOpacity="0.1" strokeWidth="0.5" />
-      <rect x="18" y="18" width="104" height="164" rx="9" fill="white" fillOpacity="0.07" />
-      <circle cx="70" cy="186" r="6" stroke="white" strokeOpacity="0.35" strokeWidth="1.5" />
-      <circle cx="70" cy="11" r="2.5" fill="white" fillOpacity="0.35" />
-    </svg>
-  );
-}
-
-function WatchSVG() {
-  return (
-    <svg viewBox="0 0 120 180" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
-      <rect x="42" y="0" width="36" height="38" rx="6" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.25" strokeWidth="1" />
-      <rect x="42" y="142" width="36" height="38" rx="6" fill="white" fillOpacity="0.12" stroke="white" strokeOpacity="0.25" strokeWidth="1" />
-      <rect x="14" y="36" width="92" height="108" rx="26" fill="white" fillOpacity="0.14" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" />
-      <rect x="22" y="46" width="76" height="88" rx="19" fill="white" fillOpacity="0.06" stroke="white" strokeOpacity="0.1" strokeWidth="0.5" />
-      <rect x="24" y="48" width="72" height="84" rx="18" fill="white" fillOpacity="0.08" />
-      <rect x="108" y="68" width="6" height="20" rx="3" fill="white" fillOpacity="0.3" />
-    </svg>
-  );
-}
-
-function DataSVG() {
-  return (
-    <svg viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-2xl">
-      <circle cx="80" cy="80" r="64" stroke="white" strokeOpacity="0.2" strokeWidth="1.5" strokeDasharray="8 4" />
-      <circle cx="80" cy="80" r="44" fill="white" fillOpacity="0.08" stroke="white" strokeOpacity="0.3" strokeWidth="1.5" />
-      <circle cx="80" cy="80" r="26" fill="white" fillOpacity="0.14" stroke="white" strokeOpacity="0.4" strokeWidth="1.5" />
-      <path d="M68 80 L76 88 L92 72" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="80" cy="26" r="5" fill="white" fillOpacity="0.5" />
-      <circle cx="134" cy="80" r="5" fill="white" fillOpacity="0.5" />
-      <circle cx="80" cy="134" r="5" fill="white" fillOpacity="0.5" />
-      <circle cx="26" cy="80" r="5" fill="white" fillOpacity="0.5" />
-    </svg>
-  );
-}
-
-type Slide = {
-  bg: string;
+/* ── slide definitions ─────────────────────────────────────── */
+type PhotoSlide = {
+  kind: "photo";
+  img: string;
+  alt: string;
   tag: string;
-  title: string;
+  heading: string;
   sub: string;
-  items: { label: string; price?: string }[];
-  Device: () => React.ReactElement;
-  cta?: string;
+  cta: string;
+  ctaHref: string;
 };
+
+type ServiceSlide = {
+  kind: "service";
+  tag: string;
+  heading: string;
+  sub: string;
+  cta: string;
+  ctaHref: string;
+  accent: string;     // right-panel bg colour
+  Illustration: () => React.ReactElement;
+};
+
+type Slide = PhotoSlide | ServiceSlide;
+
+/* ── SVG illustrations ─────────────────────────────────────── */
+function IlluPhone() {
+  return (
+    <svg viewBox="0 0 180 320" fill="none" className="w-full h-full max-h-72">
+      {/* body */}
+      <rect x="30" y="10" width="120" height="300" rx="28" fill="#1a1a1a" />
+      <rect x="34" y="14" width="112" height="292" rx="24" fill="#2a2a2a" />
+      {/* screen */}
+      <rect x="38" y="36" width="104" height="220" rx="10" fill="#111827" />
+      {/* notch */}
+      <rect x="62" y="20" width="56" height="10" rx="5" fill="#111" />
+      <circle cx="118" cy="25" r="3" fill="#333" />
+      {/* screen glow */}
+      <rect x="42" y="40" width="96" height="212" rx="8" fill="url(#sg)" opacity="0.9" />
+      {/* home bar */}
+      <rect x="70" y="274" width="40" height="4" rx="2" fill="#555" />
+      {/* screen content lines */}
+      <rect x="54" y="70" width="72" height="6" rx="3" fill="#60a5fa" opacity="0.8" />
+      <rect x="54" y="84" width="52" height="4" rx="2" fill="#6b7280" opacity="0.6" />
+      <rect x="54" y="100" width="96" height="3" rx="1.5" fill="#374151" opacity="0.5" />
+      <rect x="54" y="109" width="80" height="3" rx="1.5" fill="#374151" opacity="0.5" />
+      <rect x="54" y="118" width="88" height="3" rx="1.5" fill="#374151" opacity="0.5" />
+      {/* crack lines */}
+      <path d="M 60 50 L 75 80 L 65 100 L 85 140" stroke="#ef4444" strokeWidth="1.2" strokeLinecap="round" opacity="0.7" />
+      <path d="M 75 80 L 100 70 L 120 90" stroke="#ef4444" strokeWidth="0.8" strokeLinecap="round" opacity="0.5" />
+      {/* tools overlay */}
+      <circle cx="134" cy="200" r="22" fill="#1d4ed8" opacity="0.9" />
+      <path d="M 126 200 L 130 196 L 134 204 L 138 196 L 142 200" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#0f172a" stopOpacity="1" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function IlluMacBook() {
+  return (
+    <svg viewBox="0 0 280 200" fill="none" className="w-full h-full max-h-56">
+      {/* lid */}
+      <rect x="20" y="10" width="240" height="140" rx="12" fill="#2d2d2d" />
+      <rect x="26" y="16" width="228" height="128" rx="8" fill="#1a1a2e" />
+      {/* screen content */}
+      <rect x="30" y="20" width="220" height="120" rx="6" fill="url(#ms)" />
+      <rect x="42" y="36" width="80" height="6" rx="3" fill="#60a5fa" opacity="0.8" />
+      <rect x="42" y="48" width="56" height="4" rx="2" fill="#94a3b8" opacity="0.6" />
+      <rect x="42" y="60" width="196" height="3" rx="1.5" fill="#475569" opacity="0.5" />
+      <rect x="42" y="69" width="160" height="3" rx="1.5" fill="#475569" opacity="0.5" />
+      <rect x="42" y="78" width="180" height="3" rx="1.5" fill="#475569" opacity="0.5" />
+      {/* screwdriver/tool icon on screen */}
+      <circle cx="190" cy="80" r="28" fill="#1e40af" opacity="0.85" />
+      <path d="M182 72 L186 76 L192 70 L196 74 L190 80 L198 88" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      {/* notch */}
+      <ellipse cx="140" cy="13" rx="8" ry="3" fill="#222" />
+      {/* base */}
+      <path d="M0 154 C0 152 2 150 4 150 L276 150 C278 150 280 152 280 154 L280 168 C280 170 278 172 276 172 L4 172 C2 172 0 170 0 168Z" fill="#2d2d2d" />
+      <rect x="108" y="154" width="64" height="8" rx="4" fill="#1a1a1a" />
+      {/* keyboard rows */}
+      <rect x="18" y="152" width="244" height="2" rx="1" fill="#222" opacity="0.5" />
+      <defs>
+        <linearGradient id="ms" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#1e3a5f" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function IlluIPad() {
+  return (
+    <svg viewBox="0 0 200 260" fill="none" className="w-full h-full max-h-64">
+      <rect x="16" y="8" width="168" height="244" rx="20" fill="#1c1c1e" />
+      <rect x="22" y="14" width="156" height="232" rx="15" fill="#2c2c2e" />
+      <rect x="26" y="22" width="148" height="216" rx="11" fill="url(#is)" />
+      {/* camera */}
+      <circle cx="100" cy="17" r="4" fill="#111" />
+      <circle cx="100" cy="17" r="2" fill="#333" />
+      {/* home button */}
+      <circle cx="100" cy="246" r="7" stroke="#444" strokeWidth="1.5" />
+      {/* screen content */}
+      <rect x="36" y="40" width="128" height="6" rx="3" fill="#60a5fa" opacity="0.8" />
+      <rect x="36" y="54" width="88" height="4" rx="2" fill="#94a3b8" opacity="0.6" />
+      <rect x="36" y="70" width="128" height="3" rx="1.5" fill="#475569" opacity="0.5" />
+      <rect x="36" y="79" width="100" height="3" rx="1.5" fill="#475569" opacity="0.5" />
+      {/* tool icon */}
+      <circle cx="128" cy="160" r="30" fill="#7c3aed" opacity="0.85" />
+      <path d="M120 152 L124 148 L132 156 L136 152 L128 160 L136 168" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <defs>
+        <linearGradient id="is" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1e1b4b" />
+          <stop offset="100%" stopColor="#312e81" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function IlluWatch() {
+  return (
+    <svg viewBox="0 0 160 220" fill="none" className="w-full h-full max-h-64">
+      {/* strap top */}
+      <rect x="52" y="0" width="56" height="56" rx="8" fill="#1c1c1e" />
+      <rect x="56" y="2" width="48" height="52" rx="6" fill="#2c2c2e" />
+      {/* strap bottom */}
+      <rect x="52" y="164" width="56" height="56" rx="8" fill="#1c1c1e" />
+      <rect x="56" y="166" width="48" height="52" rx="6" fill="#2c2c2e" />
+      {/* case */}
+      <rect x="18" y="52" width="124" height="116" rx="32" fill="#1c1c1e" />
+      <rect x="24" y="58" width="112" height="104" rx="26" fill="#2c2c2e" />
+      {/* screen */}
+      <rect x="30" y="64" width="100" height="92" rx="22" fill="url(#ws)" />
+      {/* crown */}
+      <rect x="144" y="96" width="10" height="28" rx="5" fill="#3a3a3c" />
+      {/* watch face */}
+      <circle cx="80" cy="110" r="34" fill="none" stroke="#374151" strokeWidth="0.5" />
+      <line x1="80" y1="82" x2="80" y2="90" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+      <line x1="80" y1="130" x2="80" y2="138" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+      <line x1="52" y1="110" x2="60" y2="110" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+      <line x1="100" y1="110" x2="108" y2="110" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+      {/* hands */}
+      <line x1="80" y1="110" x2="80" y2="91" stroke="white" strokeWidth="2" strokeLinecap="round" />
+      <line x1="80" y1="110" x2="94" y2="110" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="80" cy="110" r="3" fill="#ef4444" />
+      <defs>
+        <linearGradient id="ws" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#0c0a09" />
+          <stop offset="100%" stopColor="#292524" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function IlluData() {
+  return (
+    <svg viewBox="0 0 200 180" fill="none" className="w-full h-full max-h-56">
+      {/* HDD body */}
+      <rect x="20" y="30" width="160" height="120" rx="10" fill="#1c1c1e" />
+      <rect x="26" y="36" width="148" height="108" rx="7" fill="#2c2c2e" />
+      {/* platters */}
+      <circle cx="90" cy="90" r="44" fill="#1a1a1a" stroke="#3a3a3c" strokeWidth="1" />
+      <circle cx="90" cy="90" r="34" fill="#222" stroke="#444" strokeWidth="0.5" />
+      <circle cx="90" cy="90" r="22" fill="#1c1c1e" stroke="#555" strokeWidth="0.5" />
+      <circle cx="90" cy="90" r="8" fill="#374151" />
+      <circle cx="90" cy="90" r="4" fill="#60a5fa" />
+      {/* arm */}
+      <line x1="90" y1="90" x2="150" y2="55" stroke="#4b5563" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="150" cy="55" r="6" fill="#374151" stroke="#60a5fa" strokeWidth="1.5" />
+      {/* gloved hand hint */}
+      <ellipse cx="162" cy="46" rx="14" ry="10" fill="#1d4ed8" opacity="0.8" />
+      <ellipse cx="162" cy="46" rx="10" ry="7" fill="#2563eb" opacity="0.9" />
+      {/* connectors */}
+      <rect x="148" y="108" width="28" height="8" rx="2" fill="#374151" />
+      <rect x="148" y="120" width="20" height="8" rx="2" fill="#374151" />
+      {/* LED */}
+      <circle cx="166" cy="66" r="4" fill="#22c55e" opacity="0.9" />
+      {/* data lines */}
+      <path d="M40 60 Q60 50 80 60" stroke="#60a5fa" strokeWidth="1" strokeDasharray="3 2" opacity="0.5" />
+      <path d="M40 70 Q60 60 80 70" stroke="#60a5fa" strokeWidth="1" strokeDasharray="3 2" opacity="0.4" />
+    </svg>
+  );
+}
 
 const SLIDES: Slide[] = [
   {
-    bg: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1d4ed8 100%)",
+    kind: "photo",
+    img: heroImg,
+    alt: "Apple naprave — iPhone, MacBook, iPad",
+    tag: "iRepair Ljubljana",
+    heading: "Apple servis specialist",
+    sub: "Koprska 94 · Tor–Pet 8:30–17:00",
+    cta: "Naročite popravilo →",
+    ctaHref: "#narocilo",
+  },
+  {
+    kind: "service",
     tag: "iPhone & iPad",
-    title: "iPhone servis",
-    sub: "Večina popravil v 20 minutah",
-    items: [
-      { label: "Zamenjava zaslona", price: "od 89€" },
-      { label: "Zamenjava baterije", price: "od 59€" },
-      { label: "Vodna škoda", price: "od 79€" },
-      { label: "Matična plošča", price: "od 149€" },
-    ],
-    Device: IPhoneSVG,
-    cta: "#narocilo",
+    heading: "Zamenjava zaslona ali baterije?",
+    sub: "Večina popravil v 20 minutah — takoj na mestu.",
+    cta: "Rezervirajte termin →",
+    ctaHref: "#narocilo",
+    accent: "#e8f0fe",
+    Illustration: IlluPhone,
   },
   {
-    bg: "linear-gradient(135deg, #020617 0%, #1e293b 50%, #334155 100%)",
+    kind: "service",
     tag: "MacBook & iMac",
-    title: "MacBook servis",
-    sub: "Specializirani za logično ploščo",
-    items: [
-      { label: "Popravilo logične plošče", price: "od 149€" },
-      { label: "Zamenjava SSD", price: "od 79€" },
-      { label: "Reševanje podatkov", price: "od 99€" },
-      { label: "Čiščenje & optimizacija", price: "od 49€" },
-    ],
-    Device: MacBookSVG,
-    cta: "#narocilo",
+    heading: "Popravilo logične plošče MacBook.",
+    sub: "Specializirani za mikrosoldiranje in reševanje podatkov.",
+    cta: "Rezervirajte termin →",
+    ctaHref: "#narocilo",
+    accent: "#f1f5f9",
+    Illustration: IlluMacBook,
   },
   {
-    bg: "linear-gradient(135deg, #1e1b4b 0%, #3730a3 50%, #4f46e5 100%)",
+    kind: "service",
     tag: "iPad & iPad Pro",
-    title: "iPad servis",
-    sub: "Originalni deli z garancijo",
-    items: [
-      { label: "Zamenjava zaslona", price: "od 99€" },
-      { label: "Zamenjava baterije", price: "od 69€" },
-      { label: "Vodna škoda", price: "od 79€" },
-      { label: "Zamenjava stekla", price: "od 79€" },
-    ],
-    Device: IPadSVG,
-    cta: "#narocilo",
+    heading: "iPad servis z originalnimi deli.",
+    sub: "Zamenjava zaslona, baterije in stekla z garancijo.",
+    cta: "Rezervirajte termin →",
+    ctaHref: "#narocilo",
+    accent: "#ede9fe",
+    Illustration: IlluIPad,
   },
   {
-    bg: "linear-gradient(135deg, #0c0a09 0%, #292524 50%, #44403c 100%)",
+    kind: "service",
     tag: "Apple Watch",
-    title: "Watch servis",
-    sub: "Vse serije Apple Watch",
-    items: [
-      { label: "Zamenjava zaslona", price: "od 79€" },
-      { label: "Zamenjava baterije", price: "od 49€" },
-      { label: "Zamenjava stekla", price: "od 59€" },
-      { label: "Vodna škoda", price: "od 69€" },
-    ],
-    Device: WatchSVG,
-    cta: "#narocilo",
+    heading: "Servis Apple Watch vseh serij.",
+    sub: "Zamenjava zaslona, baterije in stekla — hitro in zanesljivo.",
+    cta: "Rezervirajte termin →",
+    ctaHref: "#narocilo",
+    accent: "#fafaf9",
+    Illustration: IlluWatch,
   },
   {
-    bg: "linear-gradient(135deg, #022c22 0%, #064e3b 50%, #065f46 100%)",
+    kind: "service",
     tag: "Reševanje podatkov",
-    title: "Podatki so varni",
-    sub: "Uspešnost reševanja nad 90%",
-    items: [
-      { label: "iPhone / iPad" },
-      { label: "MacBook SSD" },
-      { label: "Poškodovana logična plošča" },
-      { label: "Vodna škoda" },
-    ],
-    Device: DataSVG,
-    cta: "#narocilo",
+    heading: "Reševanje podatkov iz spominskih kartic in trdih diskov.",
+    sub: "Specializirani za reševanje podatkov iz vseh Apple naprav.",
+    cta: "Rešite svoje podatke →",
+    ctaHref: "#narocilo",
+    accent: "#ecfdf5",
+    Illustration: IlluData,
   },
 ];
 
-function SlideContent({ slide }: { slide: Slide }) {
-  const { Device } = slide;
+/* ── slide renderers ───────────────────────────────────────── */
+function PhotoSlideView({ s }: { s: PhotoSlide }) {
   return (
-    <div className="w-full h-full flex items-center px-7 py-6 text-white" style={{ background: slide.bg }}>
-      <div className="flex-1 min-w-0">
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 mb-2">{slide.tag}</div>
-        <h3 className="text-xl font-extrabold leading-tight mb-0.5">{slide.title}</h3>
-        <p className="text-xs text-white/60 mb-4">{slide.sub}</p>
-        <div className="space-y-1.5">
-          {slide.items.map(item => (
-            <div key={item.label} className="flex items-center justify-between bg-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
-              <span className="text-xs font-medium text-white/90">{item.label}</span>
-              {item.price && (
-                <span className="text-xs font-bold text-white ml-3 whitespace-nowrap">{item.price}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex-shrink-0 ml-4 flex items-center justify-center" style={{ width: "30%", height: "72%" }}>
-        <Device />
+    <div className="w-full h-full relative bg-[#f0f0f0]">
+      <img src={s.img} alt={s.alt} className="w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent" />
+      <div className="absolute inset-0 flex flex-col justify-center px-8">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 mb-2">{s.tag}</span>
+        <h3 className="text-2xl font-extrabold text-white leading-tight mb-1">{s.heading}</h3>
+        <p className="text-sm text-white/70 mb-5">{s.sub}</p>
+        <a href={s.ctaHref} className="inline-flex items-center text-sm font-bold text-white hover:text-white/80 transition-colors w-fit">
+          {s.cta}
+        </a>
       </div>
     </div>
   );
 }
 
+function ServiceSlideView({ s }: { s: ServiceSlide }) {
+  const { Illustration } = s;
+  return (
+    <div className="w-full h-full flex" style={{ background: s.accent }}>
+      {/* left — text */}
+      <div className="flex flex-col justify-center px-7 py-6 w-[58%] min-w-0">
+        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#be123c] mb-3">{s.tag}</span>
+        <h3 className="text-xl font-extrabold leading-snug text-[#0f172a] mb-2">{s.heading}</h3>
+        <p className="text-sm text-[#475569] mb-5 leading-relaxed">{s.sub}</p>
+        <a href={s.ctaHref} className="inline-flex items-center text-sm font-bold text-[#be123c] hover:text-[#9f1239] transition-colors w-fit">
+          {s.cta}
+        </a>
+      </div>
+      {/* right — illustration with rounded left edge */}
+      <div className="flex-1 relative overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+            borderRadius: "50% 0 0 50%",
+          }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center p-6" style={{ borderRadius: "50% 0 0 50%", overflow: "hidden" }}>
+          <Illustration />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── slideshow ─────────────────────────────────────────────── */
 function HeroSlideshow() {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -205,7 +333,7 @@ function HeroSlideshow() {
 
   useEffect(() => {
     if (paused) return;
-    const t = setTimeout(next, 3500);
+    const t = setTimeout(next, 3800);
     return () => clearTimeout(t);
   }, [current, paused, next]);
 
@@ -217,65 +345,51 @@ function HeroSlideshow() {
       onTouchStart={() => setPaused(true)}
       onTouchEnd={() => setPaused(false)}
     >
-      {/* Image slide (first) */}
-      <div className={`absolute inset-0 transition-opacity duration-700 ${current === 0 ? "opacity-100 z-10" : "opacity-0 z-0"}`}>
-        <img
-          src={heroImg}
-          alt="Apple naprave — iPhone, MacBook, iPad"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        <div className="absolute bottom-8 left-7 text-white">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 mb-1">iRepair Ljubljana</div>
-          <div className="text-lg font-extrabold">Apple servis specialist</div>
-          <div className="text-xs text-white/70 mt-0.5">Koprska 94 · Tor–Pet 8:30–17:00</div>
-        </div>
-      </div>
-
-      {/* Service slides */}
       {SLIDES.map((slide, i) => (
         <div
           key={i}
-          className={`absolute inset-0 transition-opacity duration-700 ${i + 1 === current ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100 z-10" : "opacity-0 z-0"}`}
         >
-          <SlideContent slide={slide} />
+          {slide.kind === "photo"
+            ? <PhotoSlideView s={slide} />
+            : <ServiceSlideView s={slide} />}
         </div>
       ))}
 
-      {/* Progress bar */}
+      {/* progress bar */}
       <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 px-3 pt-3">
-        {[...Array(SLIDES.length + 1)].map((_, i) => (
-          <div key={i} className="flex-1 h-0.5 rounded-full bg-white/25 overflow-hidden">
+        {SLIDES.map((_, i) => (
+          <div key={i} className="flex-1 h-0.5 rounded-full bg-black/15 overflow-hidden">
             <div
-              className={`h-full bg-white rounded-full transition-all ${i === current ? "duration-[3500ms] ease-linear w-full" : i < current ? "w-full" : "w-0"}`}
+              className={`h-full rounded-full ${i === current ? "bg-[#be123c] transition-all duration-[3800ms] ease-linear w-full" : i < current ? "bg-[#be123c] w-full" : "w-0"}`}
             />
           </div>
         ))}
       </div>
 
-      {/* Arrows */}
+      {/* arrows */}
       <button
         onClick={prev}
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/30 hover:bg-black/55 text-white flex items-center justify-center transition-colors"
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/15 hover:bg-black/30 text-white flex items-center justify-center transition-colors"
         aria-label="Nazaj"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
       <button
         onClick={next}
-        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/30 hover:bg-black/55 text-white flex items-center justify-center transition-colors"
+        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-8 w-8 rounded-full bg-black/15 hover:bg-black/30 text-white flex items-center justify-center transition-colors"
         aria-label="Naprej"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
 
-      {/* Dots */}
+      {/* dots */}
       <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-1.5">
-        {[...Array(SLIDES.length + 1)].map((_, i) => (
+        {SLIDES.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-white" : "w-1.5 bg-white/40"}`}
+            className={`rounded-full transition-all ${i === current ? "w-5 h-1.5 bg-[#be123c]" : "w-1.5 h-1.5 bg-black/25"}`}
             aria-label={`Slide ${i + 1}`}
           />
         ))}
@@ -284,6 +398,7 @@ function HeroSlideshow() {
   );
 }
 
+/* ── hero section ──────────────────────────────────────────── */
 export function Hero() {
   const [isOpen, setIsOpen] = useState(false);
 
